@@ -80,7 +80,6 @@ model Staff {
   staffGroups         Staff2Group[]
 
   @@index([organizationunitid])
-  @@index([schoolEmail])
   @@map("staff")
 }
 

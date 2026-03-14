@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { CreateEvaluationPeriodDto, UpdateEvaluationPeriodDto } from './dto/evaluation-periods.dto';
 
 @Injectable()
 export class EvaluationPeriodsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll() {
     return this.prisma.evaluationPeriod.findMany({
@@ -56,7 +57,15 @@ export class EvaluationPeriodsService {
       throw new NotFoundException(`Evaluation period with ID ${id} not found`);
     }
 
-    const data: any = {};
+    // If activating this period, deactivate all other active periods
+    if (dto.status === 'active' && period.status !== 'active') {
+      await this.prisma.evaluationPeriod.updateMany({
+        where: { status: 'active', id: { not: id } },
+        data: { status: 'closed' },
+      });
+    }
+
+    const data: Prisma.EvaluationPeriodUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.startDate !== undefined) data.startDate = new Date(dto.startDate);

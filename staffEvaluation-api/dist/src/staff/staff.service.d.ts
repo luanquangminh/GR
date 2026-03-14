@@ -5,19 +5,16 @@ export declare class StaffService {
     constructor(prisma: PrismaService);
     findAll(): Promise<({
         organizationUnit: {
-            id: number;
             name: string;
+            id: number;
             createdAt: Date;
             updatedAt: Date;
         } | null;
     } & {
-        id: number;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
+        homeEmail: string | null;
         schoolEmail: string | null;
         staffcode: string;
-        homeEmail: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthday: Date | null;
         mobile: string | null;
@@ -27,21 +24,24 @@ export declare class StaffService {
         isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
+        id: number;
+        createdAt: Date;
+        updatedAt: Date;
     })[]>;
     findOne(id: number): Promise<{
         organizationUnit: {
-            id: number;
             name: string;
+            id: number;
             createdAt: Date;
             updatedAt: Date;
         } | null;
         staffGroups: ({
             group: {
-                id: number;
                 name: string;
+                organizationunitid: number | null;
+                id: number;
                 createdAt: Date;
                 updatedAt: Date;
-                organizationunitid: number | null;
             };
         } & {
             id: number;
@@ -49,13 +49,10 @@ export declare class StaffService {
             groupid: number;
         })[];
     } & {
-        id: number;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
+        homeEmail: string | null;
         schoolEmail: string | null;
         staffcode: string;
-        homeEmail: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthday: Date | null;
         mobile: string | null;
@@ -65,22 +62,22 @@ export declare class StaffService {
         isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
+        id: number;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     create(dto: CreateStaffDto): Promise<{
         organizationUnit: {
-            id: number;
             name: string;
+            id: number;
             createdAt: Date;
             updatedAt: Date;
         } | null;
     } & {
-        id: number;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
+        homeEmail: string | null;
         schoolEmail: string | null;
         staffcode: string;
-        homeEmail: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthday: Date | null;
         mobile: string | null;
@@ -90,22 +87,22 @@ export declare class StaffService {
         isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
+        id: number;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     update(id: number, dto: UpdateStaffDto, user: any): Promise<{
         organizationUnit: {
-            id: number;
             name: string;
+            id: number;
             createdAt: Date;
             updatedAt: Date;
         } | null;
     } & {
-        id: number;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
+        homeEmail: string | null;
         schoolEmail: string | null;
         staffcode: string;
-        homeEmail: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthday: Date | null;
         mobile: string | null;
@@ -115,15 +112,15 @@ export declare class StaffService {
         isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
+        id: number;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     remove(id: number): Promise<{
-        id: number;
         name: string;
-        createdAt: Date;
-        updatedAt: Date;
+        homeEmail: string | null;
         schoolEmail: string | null;
         staffcode: string;
-        homeEmail: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthday: Date | null;
         mobile: string | null;
@@ -133,5 +130,8 @@ export declare class StaffService {
         isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
+        id: number;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
 }

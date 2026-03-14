@@ -57,6 +57,12 @@ let EvaluationPeriodsService = class EvaluationPeriodsService {
         if (!period) {
             throw new common_1.NotFoundException(`Evaluation period with ID ${id} not found`);
         }
+        if (dto.status === 'active' && period.status !== 'active') {
+            await this.prisma.evaluationPeriod.updateMany({
+                where: { status: 'active', id: { not: id } },
+                data: { status: 'closed' },
+            });
+        }
         const data = {};
         if (dto.name !== undefined)
             data.name = dto.name;

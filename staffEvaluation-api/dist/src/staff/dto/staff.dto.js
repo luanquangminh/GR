@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateStaffDto = exports.CreateStaffDto = void 0;
 const class_validator_1 = require("class-validator");
 const client_1 = require("@prisma/client");
+const swagger_1 = require("@nestjs/swagger");
 class CreateStaffDto {
     name;
     homeEmail;
@@ -91,7 +92,7 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateStaffDto.prototype, "bidv", void 0);
-class UpdateStaffDto extends CreateStaffDto {
+class UpdateStaffDto extends (0, swagger_1.PartialType)(CreateStaffDto) {
 }
 exports.UpdateStaffDto = UpdateStaffDto;
 //# sourceMappingURL=staff.dto.js.map

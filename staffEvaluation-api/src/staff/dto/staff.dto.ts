@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsInt, IsEmail, IsEnum, IsDateString, IsBoolean } from 'class-validator';
 import { Gender } from '@prisma/client';
+import { PartialType } from '@nestjs/swagger';
 
 export class CreateStaffDto {
   @IsString()
@@ -53,4 +54,5 @@ export class CreateStaffDto {
   bidv?: string;
 }
 
-export class UpdateStaffDto extends CreateStaffDto { }
+export class UpdateStaffDto extends PartialType(CreateStaffDto) { }
+

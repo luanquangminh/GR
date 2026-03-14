@@ -14,5 +14,7 @@ export declare class CreateStaffDto {
     organizationunitid?: number;
     bidv?: string;
 }
-export declare class UpdateStaffDto extends CreateStaffDto {
+declare const UpdateStaffDto_base: import("@nestjs/common").Type<Partial<CreateStaffDto>>;
+export declare class UpdateStaffDto extends UpdateStaffDto_base {
 }
+export {};
