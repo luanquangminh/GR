@@ -7,29 +7,39 @@ export declare class GroupsService {
         organizationUnit: {
             id: number;
             name: string;
+            createdAt: Date;
+            updatedAt: Date;
         } | null;
     } & {
         id: number;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
         organizationunitid: number | null;
     })[]>;
     findOne(id: number): Promise<{
         organizationUnit: {
             id: number;
             name: string;
+            createdAt: Date;
+            updatedAt: Date;
         } | null;
         staffGroups: ({
             staff: {
                 id: number;
-                name: string | null;
-                emailh: string | null;
-                emails: string | null;
-                staffcode: string | null;
-                sex: number | null;
-                birthday: string | null;
+                name: string;
+                createdAt: Date;
+                updatedAt: Date;
+                schoolEmail: string | null;
+                staffcode: string;
+                homeEmail: string | null;
+                gender: import("@prisma/client").$Enums.Gender | null;
+                birthday: Date | null;
                 mobile: string | null;
                 academicrank: string | null;
                 academicdegree: string | null;
+                position: string | null;
+                isPartyMember: boolean;
                 organizationunitid: number | null;
                 bidv: string | null;
             };
@@ -41,19 +51,25 @@ export declare class GroupsService {
     } & {
         id: number;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
         organizationunitid: number | null;
     }>;
     getMembers(id: number): Promise<{
         id: number;
-        name: string | null;
-        emailh: string | null;
-        emails: string | null;
-        staffcode: string | null;
-        sex: number | null;
-        birthday: string | null;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        schoolEmail: string | null;
+        staffcode: string;
+        homeEmail: string | null;
+        gender: import("@prisma/client").$Enums.Gender | null;
+        birthday: Date | null;
         mobile: string | null;
         academicrank: string | null;
         academicdegree: string | null;
+        position: string | null;
+        isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
     }[]>;
@@ -61,39 +77,53 @@ export declare class GroupsService {
         organizationUnit: {
             id: number;
             name: string;
+            createdAt: Date;
+            updatedAt: Date;
         } | null;
     } & {
         id: number;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
         organizationunitid: number | null;
     }>;
     update(id: number, dto: UpdateGroupDto): Promise<{
         organizationUnit: {
             id: number;
             name: string;
+            createdAt: Date;
+            updatedAt: Date;
         } | null;
     } & {
         id: number;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
         organizationunitid: number | null;
     }>;
     updateMembers(id: number, dto: UpdateGroupMembersDto): Promise<{
         id: number;
-        name: string | null;
-        emailh: string | null;
-        emails: string | null;
-        staffcode: string | null;
-        sex: number | null;
-        birthday: string | null;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        schoolEmail: string | null;
+        staffcode: string;
+        homeEmail: string | null;
+        gender: import("@prisma/client").$Enums.Gender | null;
+        birthday: Date | null;
         mobile: string | null;
         academicrank: string | null;
         academicdegree: string | null;
+        position: string | null;
+        isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
     }[]>;
     remove(id: number): Promise<{
         id: number;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
         organizationunitid: number | null;
     }>;
 }

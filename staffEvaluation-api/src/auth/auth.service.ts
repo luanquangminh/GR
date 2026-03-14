@@ -35,6 +35,11 @@ export class AuthService {
     });
 
     if (exists) {
+      if (!exists.passwordHash) {
+        throw new ConflictException(
+          'Email này đã được đăng ký qua tài khoản Microsoft. Vui lòng dùng nút "Đăng nhập bằng tài khoản HUST".',
+        );
+      }
       throw new ConflictException('Email already registered');
     }
 
@@ -71,6 +76,12 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException(
+        'Tài khoản này dùng đăng nhập Microsoft. Vui lòng dùng nút "Đăng nhập bằng tài khoản HUST".',
+      );
     }
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
@@ -113,17 +124,17 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
-      staffId: user.profile?.staffId || null,
+      staffId: user.profile?.staffId ?? null,
       roles: user.roles.map((r) => r.role),
       isAdmin: user.roles.some((r) => r.role === 'admin'),
     };
   }
 
-  private generateTokenResponse(user: UserWithRelations) {
+  generateTokenResponse(user: UserWithRelations) {
     const accessPayload = {
       sub: user.id,
       email: user.email,
-      staffId: user.profile?.staffId || null,
+      staffId: user.profile?.staffId ?? null,
       roles: user.roles.map((r) => r.role),
     };
 
@@ -146,7 +157,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        staffId: user.profile?.staffId || null,
+        staffId: user.profile?.staffId ?? null,
         roles: user.roles.map((r) => r.role),
         isAdmin: user.roles.some((r) => r.role === 'admin'),
       },

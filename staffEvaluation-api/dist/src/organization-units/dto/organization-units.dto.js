@@ -18,6 +18,7 @@ class CreateOrganizationUnitDto {
 exports.CreateOrganizationUnitDto = CreateOrganizationUnitDto;
 __decorate([
     (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateOrganizationUnitDto.prototype, "id", void 0);
 __decorate([

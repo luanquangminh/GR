@@ -6,22 +6,26 @@ export declare class UsersService {
     getProfiles(): Promise<({
         staff: {
             id: number;
-            name: string | null;
-            emailh: string | null;
-            emails: string | null;
-            staffcode: string | null;
-            sex: number | null;
-            birthday: string | null;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            schoolEmail: string | null;
+            staffcode: string;
+            homeEmail: string | null;
+            gender: import("@prisma/client").$Enums.Gender | null;
+            birthday: Date | null;
             mobile: string | null;
             academicrank: string | null;
             academicdegree: string | null;
+            position: string | null;
+            isPartyMember: boolean;
             organizationunitid: number | null;
             bidv: string | null;
         } | null;
         user: {
             id: string;
-            email: string;
             createdAt: Date;
+            email: string;
         };
     } & {
         id: string;
@@ -33,15 +37,19 @@ export declare class UsersService {
     getProfile(userId: string): Promise<{
         staff: {
             id: number;
-            name: string | null;
-            emailh: string | null;
-            emails: string | null;
-            staffcode: string | null;
-            sex: number | null;
-            birthday: string | null;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            schoolEmail: string | null;
+            staffcode: string;
+            homeEmail: string | null;
+            gender: import("@prisma/client").$Enums.Gender | null;
+            birthday: Date | null;
             mobile: string | null;
             academicrank: string | null;
             academicdegree: string | null;
+            position: string | null;
+            isPartyMember: boolean;
             organizationunitid: number | null;
             bidv: string | null;
         } | null;
@@ -55,15 +63,19 @@ export declare class UsersService {
     linkStaff(dto: LinkStaffDto): Promise<{
         staff: {
             id: number;
-            name: string | null;
-            emailh: string | null;
-            emails: string | null;
-            staffcode: string | null;
-            sex: number | null;
-            birthday: string | null;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            schoolEmail: string | null;
+            staffcode: string;
+            homeEmail: string | null;
+            gender: import("@prisma/client").$Enums.Gender | null;
+            birthday: Date | null;
             mobile: string | null;
             academicrank: string | null;
             academicdegree: string | null;
+            position: string | null;
+            isPartyMember: boolean;
             organizationunitid: number | null;
             bidv: string | null;
         } | null;
@@ -78,15 +90,19 @@ export declare class UsersService {
         profile: ({
             staff: {
                 id: number;
-                name: string | null;
-                emailh: string | null;
-                emails: string | null;
-                staffcode: string | null;
-                sex: number | null;
-                birthday: string | null;
+                name: string;
+                createdAt: Date;
+                updatedAt: Date;
+                schoolEmail: string | null;
+                staffcode: string;
+                homeEmail: string | null;
+                gender: import("@prisma/client").$Enums.Gender | null;
+                birthday: Date | null;
                 mobile: string | null;
                 academicrank: string | null;
                 academicdegree: string | null;
+                position: string | null;
+                isPartyMember: boolean;
                 organizationunitid: number | null;
                 bidv: string | null;
             } | null;
@@ -105,10 +121,12 @@ export declare class UsersService {
         }[];
     } & {
         id: string;
-        email: string;
-        passwordHash: string;
         createdAt: Date;
         updatedAt: Date;
+        email: string;
+        microsoftId: string | null;
+        passwordHash: string | null;
+        provider: string;
     })[]>;
     addRole(userId: string, dto: AddRoleDto): Promise<{
         id: string;

@@ -86,11 +86,27 @@ describe('AuthService', () => {
       expect(bcrypt.hash).toHaveBeenCalledWith(registerDto.password, 10);
     });
 
-    it('should throw ConflictException when email already exists', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+    it('should throw ConflictException when email already exists (local user)', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'existing-user',
+        passwordHash: 'some-hash',
+      });
 
       await expect(service.register(registerDto)).rejects.toThrow(ConflictException);
       await expect(service.register(registerDto)).rejects.toThrow('Email already registered');
+    });
+
+    it('should throw ConflictException with Microsoft hint when email belongs to OAuth user', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'existing-user',
+        passwordHash: null,
+        provider: 'microsoft',
+      });
+
+      await expect(service.register(registerDto)).rejects.toThrow(ConflictException);
+      await expect(service.register(registerDto)).rejects.toThrow(
+        'Email này đã được đăng ký qua tài khoản Microsoft',
+      );
     });
   });
 
@@ -126,6 +142,24 @@ describe('AuthService', () => {
 
       await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
       await expect(service.login(loginDto)).rejects.toThrow('Invalid credentials');
+    });
+
+    it('should throw UnauthorizedException when user has no password (OAuth-only)', async () => {
+      const mockUser = {
+        id: 'user-123',
+        email: loginDto.email,
+        passwordHash: null,
+        provider: 'microsoft',
+        profile: null,
+        roles: [],
+      };
+
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+
+      await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Tài khoản này dùng đăng nhập Microsoft',
+      );
     });
 
     it('should throw UnauthorizedException when password is invalid', async () => {

@@ -1,5 +1,5 @@
-import { IsInt, IsOptional, IsNumber, IsObject, ValidateNested, Min, Max } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { IsInt, IsOptional, IsObject } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 // Custom validator for evaluation points
 function validateEvaluationPoints(evaluations: Record<string, number>): boolean {
@@ -16,7 +16,10 @@ export class BulkEvaluationDto {
   groupId: number;
 
   @IsInt()
-  victimId: number;
+  evaluateeId: number;
+
+  @IsInt()
+  periodId: number;
 
   @IsObject()
   @Transform(({ value }) => {
@@ -41,5 +44,9 @@ export class EvaluationQueryDto {
 
   @IsOptional()
   @IsInt()
-  victimId?: number;
+  evaluateeId?: number;
+
+  @IsOptional()
+  @IsInt()
+  periodId?: number;
 }

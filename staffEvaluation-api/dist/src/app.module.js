@@ -18,6 +18,7 @@ const questions_module_1 = require("./questions/questions.module");
 const evaluations_module_1 = require("./evaluations/evaluations.module");
 const organization_units_module_1 = require("./organization-units/organization-units.module");
 const users_module_1 = require("./users/users.module");
+const evaluation_periods_module_1 = require("./evaluation-periods/evaluation-periods.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -50,6 +51,7 @@ exports.AppModule = AppModule = __decorate([
             groups_module_1.GroupsModule,
             questions_module_1.QuestionsModule,
             evaluations_module_1.EvaluationsModule,
+            evaluation_periods_module_1.EvaluationPeriodsModule,
             organization_units_module_1.OrganizationUnitsModule,
             users_module_1.UsersModule,
         ],

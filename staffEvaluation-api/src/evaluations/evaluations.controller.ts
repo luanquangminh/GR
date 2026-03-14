@@ -40,27 +40,48 @@ export class EvaluationsController {
   findAll(
     @Query('groupId') groupId?: string,
     @Query('reviewerId') reviewerId?: string,
-    @Query('victimId') victimId?: string,
+    @Query('evaluateeId') evaluateeId?: string,
+    @Query('periodId') periodId?: string,
   ) {
     return this.evaluationsService.findAll({
       groupId: groupId ? parseInt(groupId, 10) : undefined,
       reviewerId: reviewerId ? parseInt(reviewerId, 10) : undefined,
-      victimId: victimId ? parseInt(victimId, 10) : undefined,
+      evaluateeId: evaluateeId ? parseInt(evaluateeId, 10) : undefined,
+      periodId: periodId ? parseInt(periodId, 10) : undefined,
     });
   }
 
   @Get('my')
-  @ApiOperation({ summary: 'Get current user evaluations' })
-  @ApiResponse({ status: 200, description: 'List of user evaluations' })
+  @ApiOperation({ summary: 'Get evaluations given by current user' })
+  @ApiResponse({ status: 200, description: 'List of evaluations given' })
   @ApiResponse({ status: 403, description: 'User not linked to staff' })
   findMy(
     @CurrentUser() user: JwtPayload & { id: string },
     @Query('groupId') groupId?: string,
+    @Query('periodId') periodId?: string,
   ) {
     const staffId = this.ensureStaffLinked(user);
     return this.evaluationsService.findByReviewer(
       staffId,
       groupId ? parseInt(groupId, 10) : undefined,
+      periodId ? parseInt(periodId, 10) : undefined,
+    );
+  }
+
+  @Get('received')
+  @ApiOperation({ summary: 'Get evaluations received by current user' })
+  @ApiResponse({ status: 200, description: 'List of evaluations received with reviewer info' })
+  @ApiResponse({ status: 403, description: 'User not linked to staff' })
+  findReceived(
+    @CurrentUser() user: JwtPayload & { id: string },
+    @Query('groupId') groupId?: string,
+    @Query('periodId') periodId?: string,
+  ) {
+    const staffId = this.ensureStaffLinked(user);
+    return this.evaluationsService.findByEvaluatee(
+      staffId,
+      groupId ? parseInt(groupId, 10) : undefined,
+      periodId ? parseInt(periodId, 10) : undefined,
     );
   }
 
@@ -95,7 +116,7 @@ export class EvaluationsController {
   }
 
   @Post('bulk')
-  @ApiOperation({ summary: 'Submit bulk evaluations' })
+  @ApiOperation({ summary: 'Submit bulk evaluations for an active period' })
   @ApiResponse({ status: 201, description: 'Evaluations created/updated' })
   @ApiResponse({ status: 403, description: 'User not linked to staff' })
   bulkUpsert(@Body() dto: BulkEvaluationDto, @CurrentUser() user: JwtPayload & { id: string }) {

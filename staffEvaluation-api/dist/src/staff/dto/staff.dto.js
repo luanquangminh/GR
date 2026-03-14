@@ -11,48 +11,49 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateStaffDto = exports.CreateStaffDto = void 0;
 const class_validator_1 = require("class-validator");
+const client_1 = require("@prisma/client");
 class CreateStaffDto {
     name;
-    emailh;
-    emails;
+    homeEmail;
+    schoolEmail;
     staffcode;
-    sex;
+    gender;
     birthday;
     mobile;
     academicrank;
     academicdegree;
+    position;
+    isPartyMember;
     organizationunitid;
     bidv;
 }
 exports.CreateStaffDto = CreateStaffDto;
 __decorate([
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateStaffDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEmail)({}, { message: 'Please provide a valid email address for emailh' }),
+    (0, class_validator_1.IsEmail)({}, { message: 'Please provide a valid home email address' }),
     __metadata("design:type", String)
-], CreateStaffDto.prototype, "emailh", void 0);
+], CreateStaffDto.prototype, "homeEmail", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEmail)({}, { message: 'Please provide a valid email address for emails' }),
+    (0, class_validator_1.IsEmail)({}, { message: 'Please provide a valid school email address' }),
     __metadata("design:type", String)
-], CreateStaffDto.prototype, "emails", void 0);
+], CreateStaffDto.prototype, "schoolEmail", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateStaffDto.prototype, "staffcode", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsInt)(),
-    __metadata("design:type", Number)
-], CreateStaffDto.prototype, "sex", void 0);
+    (0, class_validator_1.IsEnum)(client_1.Gender, { message: 'Gender must be either "male" or "female"' }),
+    __metadata("design:type", String)
+], CreateStaffDto.prototype, "gender", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsDateString)({}, { message: 'Birthday must be a valid ISO date string' }),
     __metadata("design:type", String)
 ], CreateStaffDto.prototype, "birthday", void 0);
 __decorate([
@@ -70,6 +71,16 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateStaffDto.prototype, "academicdegree", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateStaffDto.prototype, "position", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateStaffDto.prototype, "isPartyMember", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsInt)(),

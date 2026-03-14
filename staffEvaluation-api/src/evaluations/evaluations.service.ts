@@ -1,37 +1,58 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { BulkEvaluationDto } from './dto/evaluations.dto';
 
 @Injectable()
 export class EvaluationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
-  async findAll(query?: { groupId?: number; reviewerId?: number; victimId?: number }) {
-    const where: any = {};
+  async findAll(query?: { groupId?: number; reviewerId?: number; evaluateeId?: number; periodId?: number }) {
+    const where: Prisma.EvaluationWhereInput = {};
     if (query?.groupId) where.groupid = query.groupId;
     if (query?.reviewerId) where.reviewerid = query.reviewerId;
-    if (query?.victimId) where.victimid = query.victimId;
+    if (query?.evaluateeId) where.evaluateeid = query.evaluateeId;
+    if (query?.periodId) where.periodid = query.periodId;
 
     return this.prisma.evaluation.findMany({
       where,
       include: {
         reviewer: true,
-        victim: true,
+        evaluatee: true,
         group: true,
         question: true,
+        period: true,
       },
     });
   }
 
-  async findByReviewer(staffId: number, groupId?: number) {
-    const where: any = { reviewerid: staffId };
+  async findByReviewer(staffId: number, groupId?: number, periodId?: number) {
+    const where: Prisma.EvaluationWhereInput = { reviewerid: staffId };
     if (groupId) where.groupid = groupId;
+    if (periodId) where.periodid = periodId;
 
     return this.prisma.evaluation.findMany({
       where,
       include: {
-        victim: true,
+        evaluatee: true,
         question: true,
+        period: true,
+      },
+    });
+  }
+
+  async findByEvaluatee(staffId: number, groupId?: number, periodId?: number) {
+    const where: Prisma.EvaluationWhereInput = { evaluateeid: staffId };
+    if (groupId) where.groupid = groupId;
+    if (periodId) where.periodid = periodId;
+
+    return this.prisma.evaluation.findMany({
+      where,
+      include: {
+        reviewer: true,
+        question: true,
+        group: true,
+        period: true,
       },
     });
   }
@@ -67,8 +88,19 @@ export class EvaluationsService {
     }
 
     // Authorization check: Prevent self-evaluation
-    if (reviewerStaffId === dto.victimId) {
+    if (reviewerStaffId === dto.evaluateeId) {
       throw new ForbiddenException('Cannot evaluate yourself');
+    }
+
+    // Verify the period exists and is active
+    const period = await this.prisma.evaluationPeriod.findUnique({
+      where: { id: dto.periodId },
+    });
+    if (!period) {
+      throw new NotFoundException('Evaluation period not found');
+    }
+    if (period.status !== 'active') {
+      throw new BadRequestException('Evaluation period is not active');
     }
 
     // Authorization check: Verify reviewer is a member of the group
@@ -79,18 +111,18 @@ export class EvaluationsService {
       throw new ForbiddenException('You are not a member of this group');
     }
 
-    // Authorization check: Verify victim is a member of the group
-    const victimInGroup = await this.prisma.staff2Group.findFirst({
-      where: { staffid: dto.victimId, groupid: dto.groupId },
+    // Authorization check: Verify evaluatee is a member of the group
+    const evaluateeInGroup = await this.prisma.staff2Group.findFirst({
+      where: { staffid: dto.evaluateeId, groupid: dto.groupId },
     });
-    if (!victimInGroup) {
+    if (!evaluateeInGroup) {
       throw new BadRequestException('Target staff is not a member of this group');
     }
 
     // Validate point values (additional server-side validation)
     for (const point of Object.values(dto.evaluations)) {
-      if (typeof point !== 'number' || point < 0 || point > 10 || !Number.isFinite(point)) {
-        throw new BadRequestException('All evaluation points must be numbers between 0 and 10');
+      if (typeof point !== 'number' || point < 0 || point > 4 || !Number.isFinite(point)) {
+        throw new BadRequestException('All evaluation points must be numbers between 0 and 4');
       }
     }
 
@@ -100,24 +132,24 @@ export class EvaluationsService {
         const questionId = parseInt(questionIdStr, 10);
         return this.prisma.evaluation.upsert({
           where: {
-            reviewerid_victimid_groupid_questionid: {
+            reviewer_evaluatee_group_question_period: {
               reviewerid: reviewerStaffId,
-              victimid: dto.victimId,
+              evaluateeid: dto.evaluateeId,
               groupid: dto.groupId,
               questionid: questionId,
+              periodid: dto.periodId,
             },
           },
           update: {
             point,
-            modifieddate: new Date(),
           },
           create: {
             reviewerid: reviewerStaffId,
-            victimid: dto.victimId,
+            evaluateeid: dto.evaluateeId,
             groupid: dto.groupId,
             questionid: questionId,
+            periodid: dto.periodId,
             point,
-            modifieddate: new Date(),
           },
         });
       })

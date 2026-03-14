@@ -19,7 +19,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 @Controller('groups')
 @UseGuards(JwtAuthGuard)
 export class GroupsController {
-  constructor(private groupsService: GroupsService) {}
+  constructor(private groupsService: GroupsService) { }
 
   @Get()
   findAll() {
@@ -51,7 +51,7 @@ export class GroupsController {
   }
 
   @Put(':id/members')
-  @Roles('admin')
+  @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
   updateMembers(
     @Param('id', ParseIntPipe) id: number,

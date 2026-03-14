@@ -101,7 +101,7 @@ describe('StaffService', () => {
       const createDto = {
         name: 'New Staff',
         staffcode: 'GV003',
-        emailh: 'staff@example.com',
+        homeEmail: 'staff@example.com',
       };
       const mockCreatedStaff = {
         id: 3,

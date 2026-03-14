@@ -22,7 +22,8 @@ function validateEvaluationPoints(evaluations) {
 }
 class BulkEvaluationDto {
     groupId;
-    victimId;
+    evaluateeId;
+    periodId;
     evaluations;
 }
 exports.BulkEvaluationDto = BulkEvaluationDto;
@@ -33,7 +34,11 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
-], BulkEvaluationDto.prototype, "victimId", void 0);
+], BulkEvaluationDto.prototype, "evaluateeId", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    __metadata("design:type", Number)
+], BulkEvaluationDto.prototype, "periodId", void 0);
 __decorate([
     (0, class_validator_1.IsObject)(),
     (0, class_transformer_1.Transform)(({ value }) => {
@@ -49,7 +54,8 @@ __decorate([
 class EvaluationQueryDto {
     groupId;
     reviewerId;
-    victimId;
+    evaluateeId;
+    periodId;
 }
 exports.EvaluationQueryDto = EvaluationQueryDto;
 __decorate([
@@ -66,5 +72,10 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
-], EvaluationQueryDto.prototype, "victimId", void 0);
+], EvaluationQueryDto.prototype, "evaluateeId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    __metadata("design:type", Number)
+], EvaluationQueryDto.prototype, "periodId", void 0);
 //# sourceMappingURL=evaluations.dto.js.map

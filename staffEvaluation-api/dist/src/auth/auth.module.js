@@ -13,6 +13,7 @@ const passport_1 = require("@nestjs/passport");
 const config_1 = require("@nestjs/config");
 const auth_service_1 = require("./auth.service");
 const auth_controller_1 = require("./auth.controller");
+const microsoft_oauth_service_1 = require("./microsoft-oauth.service");
 const jwt_strategy_1 = require("./strategies/jwt.strategy");
 const refresh_token_strategy_1 = require("./strategies/refresh-token.strategy");
 let AuthModule = class AuthModule {
@@ -34,7 +35,7 @@ exports.AuthModule = AuthModule = __decorate([
             }),
         ],
         controllers: [auth_controller_1.AuthController],
-        providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy, refresh_token_strategy_1.RefreshTokenStrategy],
+        providers: [auth_service_1.AuthService, microsoft_oauth_service_1.MicrosoftOAuthService, jwt_strategy_1.JwtStrategy, refresh_token_strategy_1.RefreshTokenStrategy],
         exports: [auth_service_1.AuthService],
     })
 ], AuthModule);

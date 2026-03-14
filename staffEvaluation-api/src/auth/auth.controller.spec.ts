@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { MicrosoftOAuthService } from './microsoft-oauth.service';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 describe('AuthController', () => {
@@ -12,6 +14,24 @@ describe('AuthController', () => {
     login: jest.fn(),
     getMe: jest.fn(),
     refreshToken: jest.fn(),
+    generateTokenResponse: jest.fn(),
+  };
+
+  const mockMicrosoftOAuthService = {
+    getAuthorizationUrl: jest.fn(),
+    exchangeCode: jest.fn(),
+    decodeIdToken: jest.fn(),
+    validateHustDomain: jest.fn(),
+    findOrCreateUser: jest.fn(),
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      const config: Record<string, string> = {
+        FRONTEND_URL: 'http://localhost:5173',
+      };
+      return config[key];
+    }),
   };
 
   beforeEach(async () => {
@@ -27,6 +47,14 @@ describe('AuthController', () => {
         {
           provide: AuthService,
           useValue: mockAuthService,
+        },
+        {
+          provide: MicrosoftOAuthService,
+          useValue: mockMicrosoftOAuthService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();

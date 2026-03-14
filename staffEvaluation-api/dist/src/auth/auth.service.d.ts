@@ -3,6 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { User, Profile, UserRole } from '@prisma/client';
+type UserWithRelations = User & {
+    profile: Profile | null;
+    roles: UserRole[];
+};
 export declare class AuthService {
     private prisma;
     private jwtService;
@@ -52,5 +57,17 @@ export declare class AuthService {
         roles: import("@prisma/client").$Enums.AppRole[];
         isAdmin: boolean;
     }>;
-    private generateTokenResponse;
+    generateTokenResponse(user: UserWithRelations): {
+        accessToken: string;
+        refreshToken: string;
+        expiresIn: number;
+        user: {
+            id: string;
+            email: string;
+            staffId: number | null;
+            roles: import("@prisma/client").$Enums.AppRole[];
+            isAdmin: boolean;
+        };
+    };
 }
+export {};

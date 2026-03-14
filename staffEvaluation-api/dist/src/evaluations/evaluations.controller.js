@@ -32,16 +32,21 @@ let EvaluationsController = class EvaluationsController {
         }
         return user.staffId;
     }
-    findAll(groupId, reviewerId, victimId) {
+    findAll(groupId, reviewerId, evaluateeId, periodId) {
         return this.evaluationsService.findAll({
             groupId: groupId ? parseInt(groupId, 10) : undefined,
             reviewerId: reviewerId ? parseInt(reviewerId, 10) : undefined,
-            victimId: victimId ? parseInt(victimId, 10) : undefined,
+            evaluateeId: evaluateeId ? parseInt(evaluateeId, 10) : undefined,
+            periodId: periodId ? parseInt(periodId, 10) : undefined,
         });
     }
-    findMy(user, groupId) {
+    findMy(user, groupId, periodId) {
         const staffId = this.ensureStaffLinked(user);
-        return this.evaluationsService.findByReviewer(staffId, groupId ? parseInt(groupId, 10) : undefined);
+        return this.evaluationsService.findByReviewer(staffId, groupId ? parseInt(groupId, 10) : undefined, periodId ? parseInt(periodId, 10) : undefined);
+    }
+    findReceived(user, groupId, periodId) {
+        const staffId = this.ensureStaffLinked(user);
+        return this.evaluationsService.findByEvaluatee(staffId, groupId ? parseInt(groupId, 10) : undefined, periodId ? parseInt(periodId, 10) : undefined);
     }
     findMyGroups(user) {
         const staffId = this.ensureStaffLinked(user);
@@ -68,22 +73,36 @@ __decorate([
     (0, swagger_1.ApiResponse)({ status: 200, description: 'List of evaluations' }),
     __param(0, (0, common_1.Query)('groupId')),
     __param(1, (0, common_1.Query)('reviewerId')),
-    __param(2, (0, common_1.Query)('victimId')),
+    __param(2, (0, common_1.Query)('evaluateeId')),
+    __param(3, (0, common_1.Query)('periodId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], EvaluationsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('my'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get current user evaluations' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'List of user evaluations' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Get evaluations given by current user' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'List of evaluations given' }),
     (0, swagger_1.ApiResponse)({ status: 403, description: 'User not linked to staff' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Query)('groupId')),
+    __param(2, (0, common_1.Query)('periodId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], EvaluationsController.prototype, "findMy", null);
+__decorate([
+    (0, common_1.Get)('received'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get evaluations received by current user' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'List of evaluations received with reviewer info' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'User not linked to staff' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('groupId')),
+    __param(2, (0, common_1.Query)('periodId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], EvaluationsController.prototype, "findReceived", null);
 __decorate([
     (0, common_1.Get)('my-groups'),
     (0, swagger_1.ApiOperation)({ summary: 'Get groups the current user belongs to' }),
@@ -117,7 +136,7 @@ __decorate([
 ], EvaluationsController.prototype, "getStaff2Groups", null);
 __decorate([
     (0, common_1.Post)('bulk'),
-    (0, swagger_1.ApiOperation)({ summary: 'Submit bulk evaluations' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Submit bulk evaluations for an active period' }),
     (0, swagger_1.ApiResponse)({ status: 201, description: 'Evaluations created/updated' }),
     (0, swagger_1.ApiResponse)({ status: 403, description: 'User not linked to staff' }),
     __param(0, (0, common_1.Body)()),

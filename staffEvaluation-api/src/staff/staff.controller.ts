@@ -19,7 +19,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 @Controller('staff')
 @UseGuards(JwtAuthGuard)
 export class StaffController {
-  constructor(private staffService: StaffService) {}
+  constructor(private staffService: StaffService) { }
 
   @Get()
   findAll() {

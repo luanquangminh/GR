@@ -7,18 +7,24 @@ export declare class StaffController {
         organizationUnit: {
             id: number;
             name: string;
+            createdAt: Date;
+            updatedAt: Date;
         } | null;
     } & {
         id: number;
-        name: string | null;
-        emailh: string | null;
-        emails: string | null;
-        staffcode: string | null;
-        sex: number | null;
-        birthday: string | null;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        schoolEmail: string | null;
+        staffcode: string;
+        homeEmail: string | null;
+        gender: import("@prisma/client").$Enums.Gender | null;
+        birthday: Date | null;
         mobile: string | null;
         academicrank: string | null;
         academicdegree: string | null;
+        position: string | null;
+        isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
     })[]>;
@@ -26,11 +32,15 @@ export declare class StaffController {
         organizationUnit: {
             id: number;
             name: string;
+            createdAt: Date;
+            updatedAt: Date;
         } | null;
         staffGroups: ({
             group: {
                 id: number;
                 name: string;
+                createdAt: Date;
+                updatedAt: Date;
                 organizationunitid: number | null;
             };
         } & {
@@ -40,15 +50,19 @@ export declare class StaffController {
         })[];
     } & {
         id: number;
-        name: string | null;
-        emailh: string | null;
-        emails: string | null;
-        staffcode: string | null;
-        sex: number | null;
-        birthday: string | null;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        schoolEmail: string | null;
+        staffcode: string;
+        homeEmail: string | null;
+        gender: import("@prisma/client").$Enums.Gender | null;
+        birthday: Date | null;
         mobile: string | null;
         academicrank: string | null;
         academicdegree: string | null;
+        position: string | null;
+        isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
     }>;
@@ -56,18 +70,24 @@ export declare class StaffController {
         organizationUnit: {
             id: number;
             name: string;
+            createdAt: Date;
+            updatedAt: Date;
         } | null;
     } & {
         id: number;
-        name: string | null;
-        emailh: string | null;
-        emails: string | null;
-        staffcode: string | null;
-        sex: number | null;
-        birthday: string | null;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        schoolEmail: string | null;
+        staffcode: string;
+        homeEmail: string | null;
+        gender: import("@prisma/client").$Enums.Gender | null;
+        birthday: Date | null;
         mobile: string | null;
         academicrank: string | null;
         academicdegree: string | null;
+        position: string | null;
+        isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
     }>;
@@ -75,32 +95,42 @@ export declare class StaffController {
         organizationUnit: {
             id: number;
             name: string;
+            createdAt: Date;
+            updatedAt: Date;
         } | null;
     } & {
         id: number;
-        name: string | null;
-        emailh: string | null;
-        emails: string | null;
-        staffcode: string | null;
-        sex: number | null;
-        birthday: string | null;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        schoolEmail: string | null;
+        staffcode: string;
+        homeEmail: string | null;
+        gender: import("@prisma/client").$Enums.Gender | null;
+        birthday: Date | null;
         mobile: string | null;
         academicrank: string | null;
         academicdegree: string | null;
+        position: string | null;
+        isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
     }>;
     remove(id: number): Promise<{
         id: number;
-        name: string | null;
-        emailh: string | null;
-        emails: string | null;
-        staffcode: string | null;
-        sex: number | null;
-        birthday: string | null;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        schoolEmail: string | null;
+        staffcode: string;
+        homeEmail: string | null;
+        gender: import("@prisma/client").$Enums.Gender | null;
+        birthday: Date | null;
         mobile: string | null;
         academicrank: string | null;
         academicdegree: string | null;
+        position: string | null;
+        isPartyMember: boolean;
         organizationunitid: number | null;
         bidv: string | null;
     }>;

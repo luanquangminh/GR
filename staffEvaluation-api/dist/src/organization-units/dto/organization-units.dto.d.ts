@@ -1,5 +1,5 @@
 export declare class CreateOrganizationUnitDto {
-    id: number;
+    id?: number;
     name: string;
 }
 export declare class UpdateOrganizationUnitDto {

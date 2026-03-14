@@ -4,7 +4,7 @@ import { CreateStaffDto, UpdateStaffDto } from './dto/staff.dto';
 
 @Injectable()
 export class StaffService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async findAll() {
     return this.prisma.staff.findMany({

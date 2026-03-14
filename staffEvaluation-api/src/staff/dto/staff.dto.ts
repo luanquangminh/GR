@@ -1,28 +1,27 @@
-import { IsString, IsOptional, IsInt, IsEmail, IsMobilePhone } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsEmail, IsEnum, IsDateString, IsBoolean } from 'class-validator';
+import { Gender } from '@prisma/client';
 
 export class CreateStaffDto {
-  @IsOptional()
   @IsString()
-  name?: string;
+  name: string;
 
   @IsOptional()
-  @IsEmail({}, { message: 'Please provide a valid email address for emailh' })
-  emailh?: string;
+  @IsEmail({}, { message: 'Please provide a valid home email address' })
+  homeEmail?: string;
 
   @IsOptional()
-  @IsEmail({}, { message: 'Please provide a valid email address for emails' })
-  emails?: string;
+  @IsEmail({}, { message: 'Please provide a valid school email address' })
+  schoolEmail?: string;
 
-  @IsOptional()
   @IsString()
-  staffcode?: string;
+  staffcode: string;
 
   @IsOptional()
-  @IsInt()
-  sex?: number;
+  @IsEnum(Gender, { message: 'Gender must be either "male" or "female"' })
+  gender?: Gender;
 
   @IsOptional()
-  @IsString()
+  @IsDateString({}, { message: 'Birthday must be a valid ISO date string' })
   birthday?: string;
 
   @IsOptional()
@@ -38,6 +37,14 @@ export class CreateStaffDto {
   academicdegree?: string;
 
   @IsOptional()
+  @IsString()
+  position?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPartyMember?: boolean;
+
+  @IsOptional()
   @IsInt()
   organizationunitid?: number;
 
@@ -46,4 +53,4 @@ export class CreateStaffDto {
   bidv?: string;
 }
 
-export class UpdateStaffDto extends CreateStaffDto {}
+export class UpdateStaffDto extends CreateStaffDto { }

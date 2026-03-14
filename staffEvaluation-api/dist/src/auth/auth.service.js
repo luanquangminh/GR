@@ -65,6 +65,9 @@ let AuthService = class AuthService {
             where: { email: dto.email },
         });
         if (exists) {
+            if (!exists.passwordHash) {
+                throw new common_1.ConflictException('Email này đã được đăng ký qua tài khoản Microsoft. Vui lòng dùng nút "Đăng nhập bằng tài khoản HUST".');
+            }
             throw new common_1.ConflictException('Email already registered');
         }
         const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -96,6 +99,9 @@ let AuthService = class AuthService {
         });
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid credentials');
+        }
+        if (!user.passwordHash) {
+            throw new common_1.UnauthorizedException('Tài khoản này dùng đăng nhập Microsoft. Vui lòng dùng nút "Đăng nhập bằng tài khoản HUST".');
         }
         const valid = await bcrypt.compare(dto.password, user.passwordHash);
         if (!valid) {
@@ -130,7 +136,7 @@ let AuthService = class AuthService {
         return {
             id: user.id,
             email: user.email,
-            staffId: user.profile?.staffId || null,
+            staffId: user.profile?.staffId ?? null,
             roles: user.roles.map((r) => r.role),
             isAdmin: user.roles.some((r) => r.role === 'admin'),
         };
@@ -139,7 +145,7 @@ let AuthService = class AuthService {
         const accessPayload = {
             sub: user.id,
             email: user.email,
-            staffId: user.profile?.staffId || null,
+            staffId: user.profile?.staffId ?? null,
             roles: user.roles.map((r) => r.role),
         };
         const refreshPayload = {
@@ -159,7 +165,7 @@ let AuthService = class AuthService {
             user: {
                 id: user.id,
                 email: user.email,
-                staffId: user.profile?.staffId || null,
+                staffId: user.profile?.staffId ?? null,
                 roles: user.roles.map((r) => r.role),
                 isAdmin: user.roles.some((r) => r.role === 'admin'),
             },

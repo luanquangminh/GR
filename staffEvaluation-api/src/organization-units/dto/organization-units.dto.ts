@@ -1,8 +1,9 @@
-import { IsString, IsInt } from 'class-validator';
+import { IsString, IsInt, IsOptional } from 'class-validator';
 
 export class CreateOrganizationUnitDto {
   @IsInt()
-  id: number;
+  @IsOptional()
+  id?: number;
 
   @IsString()
   name: string;

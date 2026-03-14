@@ -59,14 +59,14 @@ async function seed() {
     console.log(`   ✓ Created ${orgUnits.length} organization units\n`);
     console.log('2. Creating staff members...');
     const staffData = [
-        { id: 1, name: 'Nguyễn Văn An', emailh: 'an.nv@example.com', emails: 'an.nv@school.edu.vn', staffcode: 'GV001', sex: 1, academicrank: 'PGS', academicdegree: 'Tiến sỹ', organizationunitid: 1 },
-        { id: 2, name: 'Trần Thị Bình', emailh: 'binh.tt@example.com', emails: 'binh.tt@school.edu.vn', staffcode: 'GV002', sex: 0, academicrank: null, academicdegree: 'Thạc sỹ', organizationunitid: 1 },
-        { id: 3, name: 'Lê Văn Cường', emailh: 'cuong.lv@example.com', emails: 'cuong.lv@school.edu.vn', staffcode: 'GV003', sex: 1, academicrank: 'GS', academicdegree: 'Tiến sỹ', organizationunitid: 1 },
-        { id: 4, name: 'Phạm Thị Dung', emailh: 'dung.pt@example.com', emails: 'dung.pt@school.edu.vn', staffcode: 'GV004', sex: 0, academicrank: null, academicdegree: 'Tiến sỹ', organizationunitid: 2 },
-        { id: 5, name: 'Hoàng Văn Em', emailh: 'em.hv@example.com', emails: 'em.hv@school.edu.vn', staffcode: 'GV005', sex: 1, academicrank: 'PGS', academicdegree: 'Tiến sỹ', organizationunitid: 2 },
-        { id: 6, name: 'Vũ Thị Phương', emailh: 'phuong.vt@example.com', emails: 'phuong.vt@school.edu.vn', staffcode: 'GV006', sex: 0, academicrank: null, academicdegree: 'Thạc sỹ', organizationunitid: 3 },
-        { id: 7, name: 'Đặng Văn Giang', emailh: 'giang.dv@example.com', emails: 'giang.dv@school.edu.vn', staffcode: 'GV007', sex: 1, academicrank: null, academicdegree: 'Tiến sỹ', organizationunitid: 3 },
-        { id: 8, name: 'Bùi Thị Hoa', emailh: 'hoa.bt@example.com', emails: 'hoa.bt@school.edu.vn', staffcode: 'GV008', sex: 0, academicrank: 'PGS', academicdegree: 'Tiến sỹ', organizationunitid: 1 },
+        { id: 1, name: 'Tạ Hải Tùng', homeEmail: 'tung.th@hust.edu.vn', schoolEmail: 'tung.tahai@hust.edu.vn', staffcode: 'GV001', gender: client_1.Gender.male, academicrank: 'PGS', academicdegree: 'Tiến sỹ', position: 'Viện trưởng', isPartyMember: true, organizationunitid: 1 },
+        { id: 2, name: 'Nguyễn Linh Giang', homeEmail: 'giang.nl@hust.edu.vn', schoolEmail: 'giang.nguyenlinh@hust.edu.vn', staffcode: 'GV002', gender: client_1.Gender.male, academicrank: 'PGS', academicdegree: 'Tiến sỹ', position: 'Trưởng bộ môn', isPartyMember: true, organizationunitid: 1 },
+        { id: 3, name: 'Phạm Văn Hải', homeEmail: 'hai.pv@hust.edu.vn', schoolEmail: 'hai.phamvan@hust.edu.vn', staffcode: 'GV003', gender: client_1.Gender.male, academicrank: 'PGS', academicdegree: 'Tiến sỹ', position: 'Phó Viện trưởng', isPartyMember: true, organizationunitid: 1 },
+        { id: 4, name: 'Huỳnh Thị Thanh Bình', homeEmail: 'binh.htt@hust.edu.vn', schoolEmail: 'binh.huynhthithanh@hust.edu.vn', staffcode: 'GV004', gender: client_1.Gender.female, academicrank: 'GS', academicdegree: 'Tiến sỹ', position: 'Trưởng bộ môn', isPartyMember: true, organizationunitid: 2 },
+        { id: 5, name: 'Trần Quang Đức', homeEmail: 'duc.tq@hust.edu.vn', schoolEmail: 'duc.tranquang@hust.edu.vn', staffcode: 'GV005', gender: client_1.Gender.male, academicrank: 'PGS', academicdegree: 'Tiến sỹ', position: 'Giảng viên', isPartyMember: true, organizationunitid: 2 },
+        { id: 6, name: 'Lê Thanh Hương', homeEmail: 'huong.lt@hust.edu.vn', schoolEmail: 'huong.lethanh@hust.edu.vn', staffcode: 'GV006', gender: client_1.Gender.female, academicrank: 'PGS', academicdegree: 'Tiến sỹ', position: 'Giảng viên', isPartyMember: false, organizationunitid: 3 },
+        { id: 7, name: 'Ngô Thanh Trung', homeEmail: 'trung.nt@hust.edu.vn', schoolEmail: 'trung.ngothanh@hust.edu.vn', staffcode: 'GV007', gender: client_1.Gender.male, academicrank: null, academicdegree: 'Tiến sỹ', position: 'Giảng viên', isPartyMember: false, organizationunitid: 3 },
+        { id: 8, name: 'Nguyễn Thị Thanh Nga', homeEmail: 'nga.ntt@hust.edu.vn', schoolEmail: 'nga.nguyenthithanh@hust.edu.vn', staffcode: 'GV008', gender: client_1.Gender.female, academicrank: null, academicdegree: 'Tiến sỹ', position: 'Giảng viên', isPartyMember: true, organizationunitid: 1 },
     ];
     for (const s of staffData) {
         await prisma.staff.upsert({
@@ -152,7 +152,35 @@ async function seed() {
         }),
     ]);
     console.log(`   ✓ Created ${questions.length} questions\n`);
-    console.log('6. Creating demo user accounts...');
+    console.log('6. Creating evaluation periods...');
+    const periods = await Promise.all([
+        prisma.evaluationPeriod.upsert({
+            where: { id: 1 },
+            update: {},
+            create: {
+                id: 1,
+                name: 'Đợt đánh giá HK1 2024-2025',
+                description: 'Đánh giá đồng nghiệp học kỳ 1 năm học 2024-2025',
+                startDate: new Date('2024-09-01'),
+                endDate: new Date('2025-01-31'),
+                status: 'closed',
+            },
+        }),
+        prisma.evaluationPeriod.upsert({
+            where: { id: 2 },
+            update: {},
+            create: {
+                id: 2,
+                name: 'Đợt đánh giá HK2 2024-2025',
+                description: 'Đánh giá đồng nghiệp học kỳ 2 năm học 2024-2025',
+                startDate: new Date('2025-02-01'),
+                endDate: new Date('2025-06-30'),
+                status: 'active',
+            },
+        }),
+    ]);
+    console.log(`   ✓ Created ${periods.length} evaluation periods\n`);
+    console.log('7. Creating demo user accounts...');
     const demoAccounts = [
         { email: 'admin@demo.com', password: 'Admin@123', staffId: 1, roles: [client_1.AppRole.admin, client_1.AppRole.user] },
         { email: 'moderator@demo.com', password: 'Mod@123', staffId: 3, roles: [client_1.AppRole.moderator, client_1.AppRole.user] },
@@ -195,7 +223,7 @@ async function seed() {
         }
     }
     console.log(`   ✓ Created ${demoAccounts.length} demo user accounts\n`);
-    console.log('7. Creating legacy test accounts...');
+    console.log('8. Creating legacy test accounts...');
     const legacyPassword = await bcrypt.hash('admin123', 10);
     const adminUser = await prisma.user.upsert({
         where: { email: 'admin@example.com' },
@@ -241,53 +269,69 @@ async function seed() {
         },
     });
     console.log('   ✓ Created legacy accounts\n');
-    console.log('8. Creating sample evaluations...');
-    const evaluationData = [];
-    const now = new Date();
-    for (const victimid of [2, 3, 8]) {
+    console.log('9. Creating sample evaluations for HK1 (closed)...');
+    const evaluationDataHK1 = [];
+    for (const evaluateeid of [2, 3, 8]) {
         for (const questionid of [1, 2, 3, 4, 5]) {
-            evaluationData.push({
+            evaluationDataHK1.push({
                 reviewerid: 1,
-                victimid,
+                evaluateeid,
                 groupid: 1,
                 questionid,
+                periodid: 1,
                 point: Math.round((Math.random() * 2 + 2) * 10) / 10,
-                modifieddate: now,
             });
         }
     }
-    for (const victimid of [1, 3, 8]) {
+    for (const evaluateeid of [1, 3, 8]) {
         for (const questionid of [1, 2, 3, 4, 5]) {
-            evaluationData.push({
+            evaluationDataHK1.push({
                 reviewerid: 2,
-                victimid,
+                evaluateeid,
                 groupid: 1,
                 questionid,
+                periodid: 1,
                 point: Math.round((Math.random() * 2 + 2) * 10) / 10,
-                modifieddate: now,
             });
         }
     }
     for (const questionid of [1, 2, 3, 4, 5]) {
-        evaluationData.push({
+        evaluationDataHK1.push({
             reviewerid: 4,
-            victimid: 5,
+            evaluateeid: 5,
             groupid: 3,
             questionid,
+            periodid: 1,
             point: Math.round((Math.random() * 2 + 2) * 10) / 10,
-            modifieddate: now,
         });
     }
-    for (const e of evaluationData) {
+    for (const e of evaluationDataHK1) {
         await prisma.evaluation.create({ data: e });
     }
-    console.log(`   ✓ Created ${evaluationData.length} sample evaluations\n`);
-    console.log('10. Resetting sequences...');
+    console.log(`   ✓ Created ${evaluationDataHK1.length} evaluations for HK1\n`);
+    console.log('10. Creating sample evaluations for HK2 (active)...');
+    const evaluationDataHK2 = [];
+    for (const questionid of [1, 2, 3]) {
+        evaluationDataHK2.push({
+            reviewerid: 1,
+            evaluateeid: 2,
+            groupid: 1,
+            questionid,
+            periodid: 2,
+            point: Math.round((Math.random() * 2 + 2) * 10) / 10,
+        });
+    }
+    for (const e of evaluationDataHK2) {
+        await prisma.evaluation.create({ data: e });
+    }
+    console.log(`   ✓ Created ${evaluationDataHK2.length} evaluations for HK2\n`);
+    console.log('11. Resetting sequences...');
     await prisma.$executeRawUnsafe(`SELECT setval('organizationunits_id_seq', COALESCE((SELECT MAX(id) FROM organizationunits), 0) + 1, false)`);
     await prisma.$executeRawUnsafe(`SELECT setval('staff_id_seq', COALESCE((SELECT MAX(id) FROM staff), 0) + 1, false)`);
     await prisma.$executeRawUnsafe(`SELECT setval('groups_id_seq', COALESCE((SELECT MAX(id) FROM groups), 0) + 1, false)`);
     await prisma.$executeRawUnsafe(`SELECT setval('staff2groups_id_seq', COALESCE((SELECT MAX(id) FROM staff2groups), 0) + 1, false)`);
     await prisma.$executeRawUnsafe(`SELECT setval('questions_id_seq', COALESCE((SELECT MAX(id) FROM questions), 0) + 1, false)`);
+    await prisma.$executeRawUnsafe(`SELECT setval('evaluation_periods_id_seq', COALESCE((SELECT MAX(id) FROM evaluation_periods), 0) + 1, false)`);
     await prisma.$executeRawUnsafe(`SELECT setval('evaluations_id_seq', COALESCE((SELECT MAX(id) FROM evaluations), 0) + 1, false)`);
     console.log('   ✓ Sequences reset\n');
     console.log('========================================');
@@ -297,14 +341,14 @@ async function seed() {
     console.log('  ┌───────────────────────────────────────────────────────────────┐');
     console.log('  │ DEMO ACCOUNTS                                                 │');
     console.log('  ├───────────────────────────────────────────────────────────────┤');
-    console.log('  │ Admin:     admin@demo.com / Admin@123                         │');
-    console.log('  │ Moderator: moderator@demo.com / Mod@123                       │');
-    console.log('  │ User 1:    user1@demo.com / User@123 (Trần Thị Bình)          │');
-    console.log('  │ User 2:    user2@demo.com / User@123 (Phạm Thị Dung)          │');
-    console.log('  │ User 3:    user3@demo.com / User@123 (Hoàng Văn Em)           │');
-    console.log('  │ User 4:    user4@demo.com / User@123 (Vũ Thị Phương)          │');
-    console.log('  │ User 5:    user5@demo.com / User@123 (Đặng Văn Giang)         │');
-    console.log('  │ User 6:    user6@demo.com / User@123 (Bùi Thị Hoa)            │');
+    console.log('  │ Admin:     admin@demo.com / Admin@123 (Tạ Hải Tùng)          │');
+    console.log('  │ Moderator: moderator@demo.com / Mod@123 (Phạm Văn Hải)      │');
+    console.log('  │ User 1:    user1@demo.com / User@123 (Nguyễn Linh Giang)     │');
+    console.log('  │ User 2:    user2@demo.com / User@123 (Huỳnh Thị Thanh Bình)  │');
+    console.log('  │ User 3:    user3@demo.com / User@123 (Trần Quang Đức)        │');
+    console.log('  │ User 4:    user4@demo.com / User@123 (Lê Thanh Hương)        │');
+    console.log('  │ User 5:    user5@demo.com / User@123 (Ngô Thanh Trung)       │');
+    console.log('  │ User 6:    user6@demo.com / User@123 (Nguyễn Thị Thanh Nga)  │');
     console.log('  ├───────────────────────────────────────────────────────────────┤');
     console.log('  │ LEGACY ACCOUNTS (not linked to staff)                         │');
     console.log('  │ Admin: admin@example.com / admin123                           │');

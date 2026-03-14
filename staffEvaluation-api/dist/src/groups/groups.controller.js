@@ -88,7 +88,7 @@ __decorate([
 ], GroupsController.prototype, "update", null);
 __decorate([
     (0, common_1.Put)(':id/members'),
-    (0, roles_decorator_1.Roles)('admin'),
+    (0, roles_decorator_1.Roles)('admin', 'moderator'),
     (0, common_1.UseGuards)(roles_guard_1.RolesGuard),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),

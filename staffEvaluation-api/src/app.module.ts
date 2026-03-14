@@ -9,6 +9,7 @@ import { QuestionsModule } from './questions/questions.module';
 import { EvaluationsModule } from './evaluations/evaluations.module';
 import { OrganizationUnitsModule } from './organization-units/organization-units.module';
 import { UsersModule } from './users/users.module';
+import { EvaluationPeriodsModule } from './evaluation-periods/evaluation-periods.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module';
     GroupsModule,
     QuestionsModule,
     EvaluationsModule,
+    EvaluationPeriodsModule,
     OrganizationUnitsModule,
     UsersModule,
   ],

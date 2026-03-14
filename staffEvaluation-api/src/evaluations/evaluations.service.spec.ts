@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EvaluationsService } from './evaluations.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { ForbiddenException, BadRequestException } from '@nestjs/common';
+import { ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('EvaluationsService', () => {
   let service: EvaluationsService;
@@ -11,6 +11,9 @@ describe('EvaluationsService', () => {
     evaluation: {
       findMany: jest.fn(),
       upsert: jest.fn(),
+    },
+    evaluationPeriod: {
+      findUnique: jest.fn(),
     },
     staff2Group: {
       findMany: jest.fn(),
@@ -43,8 +46,8 @@ describe('EvaluationsService', () => {
   describe('findAll', () => {
     it('should return all evaluations', async () => {
       const mockEvaluations = [
-        { id: 1, groupid: 1, reviewerid: 1, victimid: 2, questionid: 1, point: 4 },
-        { id: 2, groupid: 1, reviewerid: 1, victimid: 2, questionid: 2, point: 5 },
+        { id: 1, groupid: 1, reviewerid: 1, evaluateeid: 2, questionid: 1, periodid: 1, point: 4 },
+        { id: 2, groupid: 1, reviewerid: 1, evaluateeid: 2, questionid: 2, periodid: 1, point: 5 },
       ];
       mockPrismaService.evaluation.findMany.mockResolvedValue(mockEvaluations);
 
@@ -54,18 +57,18 @@ describe('EvaluationsService', () => {
     });
 
     it('should filter by groupId', async () => {
-      const mockEvaluations = [{ id: 1, groupid: 1, point: 4 }];
-      mockPrismaService.evaluation.findMany.mockResolvedValue(mockEvaluations);
+      mockPrismaService.evaluation.findMany.mockResolvedValue([]);
 
-      const result = await service.findAll({ groupId: 1 });
+      await service.findAll({ groupId: 1 });
 
       expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
         where: { groupid: 1 },
         include: {
           reviewer: true,
-          victim: true,
+          evaluatee: true,
           group: true,
           question: true,
+          period: true,
         },
       });
     });
@@ -79,11 +82,20 @@ describe('EvaluationsService', () => {
       });
     });
 
-    it('should filter by victimId', async () => {
-      await service.findAll({ victimId: 2 });
+    it('should filter by evaluateeId', async () => {
+      await service.findAll({ evaluateeId: 2 });
 
       expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
-        where: { victimid: 2 },
+        where: { evaluateeid: 2 },
+        include: expect.any(Object),
+      });
+    });
+
+    it('should filter by periodId', async () => {
+      await service.findAll({ periodId: 1 });
+
+      expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
+        where: { periodid: 1 },
         include: expect.any(Object),
       });
     });
@@ -92,7 +104,7 @@ describe('EvaluationsService', () => {
   describe('findByReviewer', () => {
     it('should return evaluations by reviewer', async () => {
       const mockEvaluations = [
-        { id: 1, reviewerid: 1, victimid: 2, point: 4 },
+        { id: 1, reviewerid: 1, evaluateeid: 2, point: 4 },
       ];
       mockPrismaService.evaluation.findMany.mockResolvedValue(mockEvaluations);
 
@@ -101,16 +113,42 @@ describe('EvaluationsService', () => {
       expect(result).toEqual(mockEvaluations);
       expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
         where: { reviewerid: 1 },
-        include: { victim: true, question: true },
+        include: { evaluatee: true, question: true, period: true },
       });
     });
 
-    it('should filter by groupId when provided', async () => {
-      await service.findByReviewer(1, 2);
+    it('should filter by groupId and periodId', async () => {
+      await service.findByReviewer(1, 2, 1);
 
       expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
-        where: { reviewerid: 1, groupid: 2 },
-        include: { victim: true, question: true },
+        where: { reviewerid: 1, groupid: 2, periodid: 1 },
+        include: { evaluatee: true, question: true, period: true },
+      });
+    });
+  });
+
+  describe('findByEvaluatee', () => {
+    it('should return evaluations received by staff', async () => {
+      const mockEvaluations = [
+        { id: 1, reviewerid: 2, evaluateeid: 1, point: 4, reviewer: { id: 2, name: 'Reviewer' } },
+      ];
+      mockPrismaService.evaluation.findMany.mockResolvedValue(mockEvaluations);
+
+      const result = await service.findByEvaluatee(1);
+
+      expect(result).toEqual(mockEvaluations);
+      expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
+        where: { evaluateeid: 1 },
+        include: { reviewer: true, question: true, group: true, period: true },
+      });
+    });
+
+    it('should filter by groupId and periodId', async () => {
+      await service.findByEvaluatee(1, 2, 1);
+
+      expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
+        where: { evaluateeid: 1, groupid: 2, periodid: 1 },
+        include: { reviewer: true, question: true, group: true, period: true },
       });
     });
   });
@@ -159,15 +197,19 @@ describe('EvaluationsService', () => {
   describe('bulkUpsert', () => {
     const validDto = {
       groupId: 1,
-      victimId: 2,
+      evaluateeId: 2,
+      periodId: 1,
       evaluations: { 1: 4, 2: 5 },
     };
     const reviewerStaffId = 1;
 
     beforeEach(() => {
+      mockPrismaService.evaluationPeriod.findUnique.mockResolvedValue({
+        id: 1, name: 'HK1', status: 'active',
+      });
       mockPrismaService.staff2Group.findFirst
         .mockResolvedValueOnce({ staffid: 1, groupid: 1 }) // reviewer in group
-        .mockResolvedValueOnce({ staffid: 2, groupid: 1 }); // victim in group
+        .mockResolvedValueOnce({ staffid: 2, groupid: 1 }); // evaluatee in group
     });
 
     it('should upsert evaluations successfully', async () => {
@@ -189,11 +231,25 @@ describe('EvaluationsService', () => {
     });
 
     it('should throw ForbiddenException when trying to self-evaluate', async () => {
-      const selfEvalDto = { ...validDto, victimId: 1 };
+      const selfEvalDto = { ...validDto, evaluateeId: 1 };
 
       await expect(service.bulkUpsert(selfEvalDto, 1)).rejects.toThrow(
         new ForbiddenException('Cannot evaluate yourself')
       );
+    });
+
+    it('should throw NotFoundException when period not found', async () => {
+      mockPrismaService.evaluationPeriod.findUnique.mockResolvedValue(null);
+
+      await expect(service.bulkUpsert(validDto, 1)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException when period is not active', async () => {
+      mockPrismaService.evaluationPeriod.findUnique.mockResolvedValue({
+        id: 1, name: 'HK1', status: 'closed',
+      });
+
+      await expect(service.bulkUpsert(validDto, 1)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw ForbiddenException when reviewer not in group', async () => {
@@ -205,11 +261,11 @@ describe('EvaluationsService', () => {
       );
     });
 
-    it('should throw BadRequestException when victim not in group', async () => {
+    it('should throw BadRequestException when evaluatee not in group', async () => {
       mockPrismaService.staff2Group.findFirst.mockReset();
       mockPrismaService.staff2Group.findFirst
         .mockResolvedValueOnce({ staffid: 1, groupid: 1 }) // reviewer in group
-        .mockResolvedValueOnce(null); // victim not in group
+        .mockResolvedValueOnce(null); // evaluatee not in group
 
       await expect(service.bulkUpsert(validDto, 1)).rejects.toThrow(
         new BadRequestException('Target staff is not a member of this group')

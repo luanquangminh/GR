@@ -10,7 +10,9 @@ datasource db {
 model User {
   id           String     @id @default(uuid())
   email        String     @unique
-  passwordHash String     @map("password_hash")
+  passwordHash String?    @map("password_hash")
+  provider     String     @default("local")
+  microsoftId  String?    @unique @map("microsoft_id")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
   profile      Profile?
@@ -43,35 +45,42 @@ model UserRole {
 }
 
 model OrganizationUnit {
-  id     Int     @id @default(autoincrement())
-  name   String
-  groups Group[]
-  staff  Staff[]
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  groups    Group[]
+  staff     Staff[]
 
   @@map("organizationunits")
 }
 
 model Staff {
   id                  Int               @id @default(autoincrement())
-  name                String?
-  emailh              String?
-  emails              String?
-  staffcode           String?
-  sex                 Int?
-  birthday            String?
+  name                String
+  homeEmail           String?           @map("emailh")
+  schoolEmail         String?           @unique @map("emails")
+  staffcode           String            @unique
+  gender              Gender?           @map("sex")
+  birthday            DateTime?
   mobile              String?
   academicrank        String?
   academicdegree      String?
+  position            String?
+  isPartyMember       Boolean           @default(false) @map("is_party_member")
+
   organizationunitid  Int?              @map("organizationunitid")
   bidv                String?
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
   evaluationsGiven    Evaluation[]      @relation("reviewer")
-  evaluationsReceived Evaluation[]      @relation("victim")
+  evaluationsReceived Evaluation[]      @relation("evaluatee")
   profile             Profile?
   organizationUnit    OrganizationUnit? @relation(fields: [organizationunitid], references: [id])
   staffGroups         Staff2Group[]
 
   @@index([organizationunitid])
-  @@index([staffcode])
+  @@index([schoolEmail])
   @@map("staff")
 }
 
@@ -79,6 +88,8 @@ model Group {
   id                 Int               @id @default(autoincrement())
   name               String
   organizationunitid Int?              @map("organizationunitid")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
   evaluations        Evaluation[]
   organizationUnit   OrganizationUnit? @relation(fields: [organizationunitid], references: [id])
   staffGroups        Staff2Group[]
@@ -105,44 +116,85 @@ model Question {
   id          Int          @id @default(autoincrement())
   title       String
   description String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
   evaluations Evaluation[]
 
   @@map("questions")
 }
 
 model Subject {
-  id        Int     @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   subjectid String?
   name      String?
   groupid   Int?
-  group     Group?  @relation(fields: [groupid], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  group     Group?   @relation(fields: [groupid], references: [id])
 
   @@map("subjects")
 }
 
-model Evaluation {
-  id           Int       @id @default(autoincrement())
-  reviewerid   Int?
-  victimid     Int?
-  groupid      Int?
-  modifieddate DateTime? @map("modifieddate")
-  point        Float?
-  questionid   Int?
-  group        Group?    @relation(fields: [groupid], references: [id])
-  question     Question? @relation(fields: [questionid], references: [id])
-  reviewer     Staff?    @relation("reviewer", fields: [reviewerid], references: [id])
-  victim       Staff?    @relation("victim", fields: [victimid], references: [id])
+model EvaluationPeriod {
+  id          Int              @id @default(autoincrement())
+  name        String
+  description String?
+  startDate   DateTime         @map("start_date")
+  endDate     DateTime         @map("end_date")
+  status      PeriodStatus     @default(draft)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  evaluations Evaluation[]
 
-  @@unique([reviewerid, victimid, groupid, questionid], name: "reviewerid_victimid_groupid_questionid")
+  @@map("evaluation_periods")
+}
+
+model Evaluation {
+  id           Int              @id @default(autoincrement())
+  reviewerid   Int
+  evaluateeid  Int              @map("evaluatee_id")
+  groupid      Int
+  questionid   Int
+  periodid     Int              @map("periodid")
+  point        Float            @default(0)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  modifieddate DateTime         @default(now()) @updatedAt @map("modifieddate")
+  group        Group            @relation(fields: [groupid], references: [id], onDelete: Cascade)
+  question     Question         @relation(fields: [questionid], references: [id], onDelete: Cascade)
+  reviewer     Staff            @relation("reviewer", fields: [reviewerid], references: [id], onDelete: Cascade)
+  evaluatee    Staff            @relation("evaluatee", fields: [evaluateeid], references: [id], onDelete: Cascade)
+  period       EvaluationPeriod @relation(fields: [periodid], references: [id], onDelete: Cascade)
+
+  @@unique([reviewerid, evaluateeid, groupid, questionid, periodid], name: "reviewer_evaluatee_group_question_period")
   @@index([reviewerid])
-  @@index([victimid])
+  @@index([evaluateeid])
   @@index([groupid])
   @@index([questionid])
+  @@index([periodid])
+  @@index([reviewerid, periodid])
+  @@index([evaluateeid, periodid])
+  @@index([evaluateeid, groupid, periodid])
   @@map("evaluations")
 }
+
 
 enum AppRole {
   admin
   moderator
   user
+}
+
+enum Gender {
+  male
+  female
+
+  @@map("gender")
+}
+
+enum PeriodStatus {
+  draft
+  active
+  closed
+
+  @@map("period_status")
 }
