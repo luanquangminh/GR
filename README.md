@@ -29,7 +29,7 @@
 
 | Layer | Technology |
 |-------|------------|
-| **Frontend** | React 18, TypeScript, Vite, TanStack Query, Tailwind CSS, shadcn/ui, Recharts |
+| **Frontend** | React 18, TypeScript, Vite, TanStack Query, Tailwind CSS, shadcn/ui, Recharts, Custom Fetch API Client |
 | **Backend** | NestJS, Prisma ORM, Passport.js (JWT + Microsoft OAuth) |
 | **Database** | PostgreSQL 16 |
 | **Authentication** | JWT (Access + Refresh tokens), Microsoft OAuth 2.0 |
@@ -57,6 +57,7 @@ flowchart TB
             Groups["Groups<br/>Module"]
             Evaluations["Evaluations<br/>Module"]
             Questions["Questions<br/>Module"]
+            OrgUnits["Organization<br/>Units Module"]
             Periods["Evaluation<br/>Periods Module"]
             Users["Users<br/>Module"]
         end
@@ -85,10 +86,12 @@ flowchart TB
     subgraph FRONTEND["FRONTEND (React)"]
         subgraph Pages
             AuthPage["Auth"]
+            AuthCallback["AuthCallback"]
             Dashboard["Dashboard"]
             Assessment["Assessment"]
             History["History"]
             Profile["Profile"]
+            NotFound["NotFound"]
             subgraph Admin
                 AdminStaff["Staff"]
                 AdminGroups["Groups"]
@@ -102,6 +105,7 @@ flowchart TB
         subgraph Components
             AppSidebar["AppSidebar"]
             MainLayout["MainLayout"]
+            NavLink["NavLink"]
             ProtectedRoute["ProtectedRoute"]
             UI["ui/ (shadcn)"]
         end
@@ -109,9 +113,10 @@ flowchart TB
             useAuth["useAuth"]
             useStaff["useStaff"]
             useToast["useToast"]
+            useMobile["useMobile"]
         end
         State["State: TanStack Query"]
-        APIClient["API Client (Axios)"]
+        APIClient["API Client (Fetch)"]
     end
     
     APIClient --> BACKEND
@@ -124,6 +129,8 @@ flowchart TB
             QuestionsController["QuestionsController"]
             EvaluationsController["EvaluationsController"]
             PeriodsController["EvaluationPeriodsController"]
+            OrgUnitsController["OrganizationUnitsController"]
+            UsersController["UsersController"]
         end
         subgraph Services
             AuthService["AuthService"]
@@ -133,6 +140,8 @@ flowchart TB
             QuestionsService["QuestionsService"]
             EvaluationsService["EvaluationsService"]
             PeriodsService["EvaluationPeriodsService"]
+            OrgUnitsService["OrganizationUnitsService"]
+            UsersService["UsersService"]
         end
         subgraph Guards
             JwtAuthGuard["JwtAuthGuard"]
@@ -469,15 +478,18 @@ CREATE INDEX idx_evaluations_evaluatee_group_period ON evaluations(evaluatee_id,
 | POST | `/auth/login` | Login with email/password | Public |
 | POST | `/auth/refresh` | Refresh tokens | Public |
 | GET | `/auth/me` | Get current user | JWT |
-| POST | `/auth/microsoft` | Login with Microsoft OAuth | Public |
+| GET | `/auth/microsoft` | Redirect to Microsoft login | Public |
+| GET | `/auth/microsoft/callback` | Microsoft OAuth callback | Public |
+| POST | `/auth/microsoft/token` | Exchange one-time code for JWT | Public |
 
 #### Organization Units
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | GET | `/organization-units` | List all | JWT |
+| GET | `/organization-units/:id` | Get by ID | JWT |
 | POST | `/organization-units` | Create | Admin |
-| PUT | `/organization-units/:id` | Update | Admin |
+| PATCH | `/organization-units/:id` | Update | Admin |
 | DELETE | `/organization-units/:id` | Delete | Admin |
 
 #### Staff
@@ -487,7 +499,7 @@ CREATE INDEX idx_evaluations_evaluatee_group_period ON evaluations(evaluatee_id,
 | GET | `/staff` | List all staff | JWT |
 | GET | `/staff/:id` | Get by ID | JWT |
 | POST | `/staff` | Create (name, staffcode required) | Admin |
-| PUT | `/staff/:id` | Update (partial) | Admin |
+| PATCH | `/staff/:id` | Update (partial) | Admin |
 | DELETE | `/staff/:id` | Delete | Admin |
 
 #### Groups
@@ -495,10 +507,12 @@ CREATE INDEX idx_evaluations_evaluatee_group_period ON evaluations(evaluatee_id,
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | GET | `/groups` | List all | JWT |
-| GET | `/groups/:id` | Get with members | JWT |
+| GET | `/groups/:id` | Get by ID | JWT |
+| GET | `/groups/:id/members` | Get group members | JWT |
 | POST | `/groups` | Create | Admin |
-| POST | `/groups/:id/members` | Add members | Admin |
-| DELETE | `/groups/:id/members` | Remove members | Admin |
+| PATCH | `/groups/:id` | Update | Admin |
+| PUT | `/groups/:id/members` | Update members | Admin/Mod |
+| DELETE | `/groups/:id` | Delete | Admin |
 
 #### Evaluation Periods
 
@@ -507,7 +521,7 @@ CREATE INDEX idx_evaluations_evaluatee_group_period ON evaluations(evaluatee_id,
 | GET | `/evaluation-periods` | List all periods | JWT |
 | GET | `/evaluation-periods/active` | Get active periods | JWT |
 | POST | `/evaluation-periods` | Create new period | Admin |
-| PUT | `/evaluation-periods/:id` | Update (auto-deactivates others if activating) | Admin |
+| PATCH | `/evaluation-periods/:id` | Update (auto-deactivates others if activating) | Admin |
 | DELETE | `/evaluation-periods/:id` | Delete period | Admin |
 
 #### Evaluations
@@ -528,8 +542,19 @@ CREATE INDEX idx_evaluations_evaluatee_group_period ON evaluations(evaluatee_id,
 |--------|----------|-------------|------|
 | GET | `/questions` | List all questions | JWT |
 | POST | `/questions` | Create question | Admin |
-| PUT | `/questions/:id` | Update question | Admin |
+| PATCH | `/questions/:id` | Update question | Admin |
 | DELETE | `/questions/:id` | Delete question | Admin |
+
+#### Users
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/users/profiles` | List all user profiles | Admin |
+| GET | `/users/profile` | Get my profile | JWT |
+| POST | `/users/link-staff` | Link user to staff | Admin |
+| GET | `/users/roles` | Get users with roles | Admin |
+| POST | `/users/:userId/roles` | Add role to user | Admin |
+| DELETE | `/users/:userId/roles/:role` | Remove role | Admin |
 
 ### 6.2 Request/Response Examples
 
