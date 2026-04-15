@@ -11,13 +11,19 @@ describe('EvaluationsService', () => {
     evaluation: {
       findMany: jest.fn(),
       upsert: jest.fn(),
+      count: jest.fn(),
     },
     evaluationPeriod: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    question: {
+      findMany: jest.fn(),
     },
     staff2Group: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      groupBy: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -63,6 +69,8 @@ describe('EvaluationsService', () => {
 
       expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
         where: { groupid: 1 },
+        take: 50000,
+        skip: undefined,
         include: {
           reviewer: true,
           evaluatee: true,
@@ -78,6 +86,8 @@ describe('EvaluationsService', () => {
 
       expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
         where: { reviewerid: 1 },
+        take: 50000,
+        skip: undefined,
         include: expect.any(Object),
       });
     });
@@ -87,6 +97,8 @@ describe('EvaluationsService', () => {
 
       expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
         where: { evaluateeid: 2 },
+        take: 50000,
+        skip: undefined,
         include: expect.any(Object),
       });
     });
@@ -96,6 +108,8 @@ describe('EvaluationsService', () => {
 
       expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
         where: { periodid: 1 },
+        take: 50000,
+        skip: undefined,
         include: expect.any(Object),
       });
     });
@@ -139,7 +153,7 @@ describe('EvaluationsService', () => {
       expect(result).toEqual(mockEvaluations);
       expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
         where: { evaluateeid: 1 },
-        include: { reviewer: true, question: true, group: true, period: true },
+        include: { reviewer: { select: { id: true, name: true, avatar: true } }, question: true, group: true, period: true },
       });
     });
 
@@ -148,7 +162,7 @@ describe('EvaluationsService', () => {
 
       expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
         where: { evaluateeid: 1, groupid: 2, periodid: 1 },
-        include: { reviewer: true, question: true, group: true, period: true },
+        include: { reviewer: { select: { id: true, name: true, avatar: true } }, question: true, group: true, period: true },
       });
     });
   });
@@ -199,23 +213,26 @@ describe('EvaluationsService', () => {
       groupId: 1,
       evaluateeId: 2,
       periodId: 1,
-      evaluations: { 1: 4, 2: 5 },
+      evaluations: { 1: 3.5, 2: 4 },
     };
     const reviewerStaffId = 1;
 
     beforeEach(() => {
       mockPrismaService.evaluationPeriod.findUnique.mockResolvedValue({
         id: 1, name: 'HK1', status: 'active',
+        startDate: new Date('2020-01-01'),
+        endDate: new Date('2030-12-31'),
       });
       mockPrismaService.staff2Group.findFirst
         .mockResolvedValueOnce({ staffid: 1, groupid: 1 }) // reviewer in group
         .mockResolvedValueOnce({ staffid: 2, groupid: 1 }); // evaluatee in group
+      mockPrismaService.question.findMany.mockResolvedValue([{ id: 1 }, { id: 2 }]);
     });
 
     it('should upsert evaluations successfully', async () => {
       mockPrismaService.$transaction.mockResolvedValue([
-        { id: 1, point: 4 },
-        { id: 2, point: 5 },
+        { id: 1, point: 3.5 },
+        { id: 2, point: 4 },
       ]);
 
       const result = await service.bulkUpsert(validDto, reviewerStaffId);
@@ -284,7 +301,7 @@ describe('EvaluationsService', () => {
     it('should throw BadRequestException for invalid point values (too high)', async () => {
       const invalidDto = {
         ...validDto,
-        evaluations: { 1: 11 },
+        evaluations: { 1: 5 },
       };
 
       await expect(service.bulkUpsert(invalidDto, reviewerStaffId)).rejects.toThrow(BadRequestException);
@@ -323,6 +340,163 @@ describe('EvaluationsService', () => {
       expect(mockPrismaService.staff2Group.findMany).toHaveBeenCalledWith({
         include: { staff: true, group: true },
       });
+    });
+  });
+
+  describe('findByEvaluateeClosedPeriods', () => {
+    it('should return evaluations for closed periods only', async () => {
+      const mockEvaluations = [
+        { id: 1, evaluateeid: 1, periodid: 1, point: 3.5, period: { status: 'closed' } },
+      ];
+      mockPrismaService.evaluation.findMany.mockResolvedValue(mockEvaluations);
+
+      const result = await service.findByEvaluateeClosedPeriods(1);
+
+      expect(result).toEqual(mockEvaluations);
+      expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
+        where: { evaluateeid: 1, period: { status: 'closed' } },
+        include: {
+          reviewer: { select: { id: true, name: true, avatar: true } },
+          question: true,
+          group: true,
+          period: true,
+        },
+      });
+    });
+
+    it('should filter by periodId when provided', async () => {
+      mockPrismaService.evaluation.findMany.mockResolvedValue([]);
+
+      await service.findByEvaluateeClosedPeriods(1, 2);
+
+      expect(mockPrismaService.evaluation.findMany).toHaveBeenCalledWith({
+        where: { evaluateeid: 1, period: { status: 'closed' }, periodid: 2 },
+        include: expect.any(Object),
+      });
+    });
+  });
+
+  describe('getMyProgress', () => {
+    it('should return empty groups when no active period', async () => {
+      mockPrismaService.evaluationPeriod.findFirst.mockResolvedValue(null);
+
+      const result = await service.getMyProgress(1);
+
+      expect(result).toEqual({ periodId: null, periodName: null, groups: [] });
+    });
+
+    it('should return progress per group for active period', async () => {
+      mockPrismaService.evaluationPeriod.findFirst.mockResolvedValue({
+        id: 1, name: 'HK1', status: 'active',
+      });
+      mockPrismaService.staff2Group.findMany.mockResolvedValue([
+        { staffid: 1, groupid: 10, group: { name: 'Group A' } },
+      ]);
+      mockPrismaService.staff2Group.groupBy.mockResolvedValue([
+        { groupid: 10, _count: { staffid: 3 } },
+      ]);
+      mockPrismaService.evaluation.findMany.mockResolvedValue([
+        { groupid: 10, evaluateeid: 2 },
+        { groupid: 10, evaluateeid: 3 },
+      ]);
+
+      const result = await service.getMyProgress(1);
+
+      expect(result.periodId).toBe(1);
+      expect(result.periodName).toBe('HK1');
+      expect(result.groups).toHaveLength(1);
+      expect(result.groups[0]).toEqual({
+        groupId: 10,
+        groupName: 'Group A',
+        totalColleagues: 3,
+        evaluatedColleagues: 2,
+        isComplete: false,
+      });
+    });
+
+    it('should mark group as complete when all colleagues evaluated', async () => {
+      mockPrismaService.evaluationPeriod.findFirst.mockResolvedValue({
+        id: 1, name: 'HK1', status: 'active',
+      });
+      mockPrismaService.staff2Group.findMany.mockResolvedValue([
+        { staffid: 1, groupid: 10, group: { name: 'Group A' } },
+      ]);
+      mockPrismaService.staff2Group.groupBy.mockResolvedValue([
+        { groupid: 10, _count: { staffid: 2 } },
+      ]);
+      mockPrismaService.evaluation.findMany.mockResolvedValue([
+        { groupid: 10, evaluateeid: 2 },
+        { groupid: 10, evaluateeid: 3 },
+      ]);
+
+      const result = await service.getMyProgress(1);
+
+      expect(result.groups[0].isComplete).toBe(true);
+    });
+  });
+
+  describe('getPendingEvaluations', () => {
+    it('should return empty when no active period', async () => {
+      mockPrismaService.evaluationPeriod.findFirst.mockResolvedValue(null);
+
+      const result = await service.getPendingEvaluations();
+
+      expect(result).toEqual({ periodId: null, periodName: null, pending: [] });
+    });
+
+    it('should return staff who have not completed evaluations', async () => {
+      mockPrismaService.evaluationPeriod.findFirst.mockResolvedValue({
+        id: 1, name: 'HK1', status: 'active',
+      });
+      mockPrismaService.staff2Group.groupBy.mockResolvedValue([
+        { groupid: 10, _count: { staffid: 3 } },
+      ]);
+      // Group with 3 members: staff 1, 2, 3
+      mockPrismaService.staff2Group.findMany.mockResolvedValue([
+        { staffid: 1, groupid: 10, staff: { id: 1, name: 'Staff 1' }, group: { id: 10, name: 'Group A' } },
+        { staffid: 2, groupid: 10, staff: { id: 2, name: 'Staff 2' }, group: { id: 10, name: 'Group A' } },
+        { staffid: 3, groupid: 10, staff: { id: 3, name: 'Staff 3' }, group: { id: 10, name: 'Group A' } },
+      ]);
+      // Staff 1 evaluated only 1 of 2 colleagues
+      mockPrismaService.evaluation.findMany.mockResolvedValue([
+        { reviewerid: 1, groupid: 10, evaluateeid: 2 },
+        // Staff 2 and 3 have not evaluated anyone
+      ]);
+
+      const result = await service.getPendingEvaluations();
+
+      expect(result.periodId).toBe(1);
+      expect(result.pending).toHaveLength(3); // staff 1 (1/2), staff 2 (0/2), staff 3 (0/2)
+      expect(result.pending[0]).toMatchObject({
+        staffId: 1,
+        staffName: 'Staff 1',
+        groupId: 10,
+        totalColleagues: 2,
+        evaluatedColleagues: 1,
+      });
+    });
+
+    it('should not include staff who completed all evaluations', async () => {
+      mockPrismaService.evaluationPeriod.findFirst.mockResolvedValue({
+        id: 1, name: 'HK1', status: 'active',
+      });
+      mockPrismaService.staff2Group.groupBy.mockResolvedValue([
+        { groupid: 10, _count: { staffid: 2 } },
+      ]);
+      mockPrismaService.staff2Group.findMany.mockResolvedValue([
+        { staffid: 1, groupid: 10, staff: { id: 1, name: 'Staff 1' }, group: { id: 10, name: 'Group A' } },
+        { staffid: 2, groupid: 10, staff: { id: 2, name: 'Staff 2' }, group: { id: 10, name: 'Group A' } },
+      ]);
+      // Staff 1 evaluated staff 2 (the only colleague) — complete
+      mockPrismaService.evaluation.findMany.mockResolvedValue([
+        { reviewerid: 1, groupid: 10, evaluateeid: 2 },
+      ]);
+
+      const result = await service.getPendingEvaluations();
+
+      // Only staff 2 is pending (hasn't evaluated staff 1)
+      expect(result.pending).toHaveLength(1);
+      expect(result.pending[0].staffId).toBe(2);
     });
   });
 });

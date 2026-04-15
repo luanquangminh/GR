@@ -38,7 +38,7 @@ describe('EvaluationPeriodsController', () => {
       const mockPeriods = [{ id: 1, name: 'HK1' }, { id: 2, name: 'HK2' }];
       mockService.findAll.mockResolvedValue(mockPeriods);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll({});
 
       expect(result).toEqual(mockPeriods);
     });

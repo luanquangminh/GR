@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ForbiddenException } from '@nestjs/common';
 import { EvaluationsController } from './evaluations.controller';
 import { EvaluationsService } from './evaluations.service';
 
@@ -10,10 +12,13 @@ describe('EvaluationsController', () => {
     findAll: jest.fn(),
     findByReviewer: jest.fn(),
     findByEvaluatee: jest.fn(),
+    findByEvaluateeClosedPeriods: jest.fn(),
     findGroupsByStaff: jest.fn(),
     findColleagues: jest.fn(),
     getStaff2Groups: jest.fn(),
     bulkUpsert: jest.fn(),
+    getMyProgress: jest.fn(),
+    getPendingEvaluations: jest.fn(),
   };
 
   const mockUser = {
@@ -26,6 +31,7 @@ describe('EvaluationsController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }])],
       controllers: [EvaluationsController],
       providers: [
         {
@@ -52,34 +58,24 @@ describe('EvaluationsController', () => {
       ];
       mockEvaluationsService.findAll.mockResolvedValue(mockEvaluations);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll({});
 
       expect(result).toEqual(mockEvaluations);
-      expect(mockEvaluationsService.findAll).toHaveBeenCalledWith({
-        groupId: undefined,
-        reviewerId: undefined,
-        evaluateeId: undefined,
-        periodId: undefined,
-      });
+      expect(mockEvaluationsService.findAll).toHaveBeenCalledWith({});
     });
 
     it('should filter by periodId', async () => {
       mockEvaluationsService.findAll.mockResolvedValue([]);
 
-      await controller.findAll(undefined, undefined, undefined, '1');
+      await controller.findAll({ periodId: 1 });
 
-      expect(mockEvaluationsService.findAll).toHaveBeenCalledWith({
-        groupId: undefined,
-        reviewerId: undefined,
-        evaluateeId: undefined,
-        periodId: 1,
-      });
+      expect(mockEvaluationsService.findAll).toHaveBeenCalledWith({ periodId: 1 });
     });
 
     it('should filter by multiple params', async () => {
       mockEvaluationsService.findAll.mockResolvedValue([]);
 
-      await controller.findAll('1', '2', '3', '1');
+      await controller.findAll({ groupId: 1, reviewerId: 2, evaluateeId: 3, periodId: 1 });
 
       expect(mockEvaluationsService.findAll).toHaveBeenCalledWith({
         groupId: 1,
@@ -95,7 +91,7 @@ describe('EvaluationsController', () => {
       const mockEvaluations = [{ id: 1, reviewerid: 1, evaluateeid: 2, point: 4 }];
       mockEvaluationsService.findByReviewer.mockResolvedValue(mockEvaluations);
 
-      const result = await controller.findMy(mockUser);
+      const result = await controller.findMy(mockUser, {});
 
       expect(result).toEqual(mockEvaluations);
       expect(mockEvaluationsService.findByReviewer).toHaveBeenCalledWith(1, undefined, undefined);
@@ -104,7 +100,7 @@ describe('EvaluationsController', () => {
     it('should filter by groupId and periodId', async () => {
       mockEvaluationsService.findByReviewer.mockResolvedValue([]);
 
-      await controller.findMy(mockUser, '1', '2');
+      await controller.findMy(mockUser, { groupId: 1, periodId: 2 });
 
       expect(mockEvaluationsService.findByReviewer).toHaveBeenCalledWith(1, 1, 2);
     });
@@ -117,7 +113,7 @@ describe('EvaluationsController', () => {
       ];
       mockEvaluationsService.findByEvaluatee.mockResolvedValue(mockEvaluations);
 
-      const result = await controller.findReceived(mockUser);
+      const result = await controller.findReceived(mockUser, {});
 
       expect(result).toEqual(mockEvaluations);
       expect(mockEvaluationsService.findByEvaluatee).toHaveBeenCalledWith(1, undefined, undefined);
@@ -126,7 +122,7 @@ describe('EvaluationsController', () => {
     it('should filter by groupId and periodId', async () => {
       mockEvaluationsService.findByEvaluatee.mockResolvedValue([]);
 
-      await controller.findReceived(mockUser, '1', '2');
+      await controller.findReceived(mockUser, { groupId: 1, periodId: 2 });
 
       expect(mockEvaluationsService.findByEvaluatee).toHaveBeenCalledWith(1, 1, 2);
     });
@@ -186,6 +182,76 @@ describe('EvaluationsController', () => {
 
       expect(result).toEqual(mockResults);
       expect(mockEvaluationsService.bulkUpsert).toHaveBeenCalledWith(dto, 1);
+    });
+  });
+
+  describe('findStaffReceived', () => {
+    it('should return evaluations received by a specific staff (closed periods)', async () => {
+      const mockEvaluations = [
+        { id: 1, evaluateeid: 5, point: 3.5, period: { status: 'closed' } },
+      ];
+      mockEvaluationsService.findByEvaluateeClosedPeriods.mockResolvedValue(mockEvaluations);
+
+      const result = await controller.findStaffReceived(5, {});
+
+      expect(result).toEqual(mockEvaluations);
+      expect(mockEvaluationsService.findByEvaluateeClosedPeriods).toHaveBeenCalledWith(5, undefined);
+    });
+
+    it('should filter by periodId', async () => {
+      mockEvaluationsService.findByEvaluateeClosedPeriods.mockResolvedValue([]);
+
+      await controller.findStaffReceived(5, { periodId: 2 });
+
+      expect(mockEvaluationsService.findByEvaluateeClosedPeriods).toHaveBeenCalledWith(5, 2);
+    });
+  });
+
+  describe('getMyProgress', () => {
+    it('should return evaluation progress for current user', async () => {
+      const mockProgress = {
+        periodId: 1,
+        periodName: 'HK1',
+        groups: [{ groupId: 1, groupName: 'Group A', totalColleagues: 3, evaluatedColleagues: 1, isComplete: false }],
+      };
+      mockEvaluationsService.getMyProgress.mockResolvedValue(mockProgress);
+
+      const result = await controller.getMyProgress(mockUser);
+
+      expect(result).toEqual(mockProgress);
+      expect(mockEvaluationsService.getMyProgress).toHaveBeenCalledWith(1);
+    });
+
+    it('should throw ForbiddenException when user has no staffId', async () => {
+      const userNoStaff = { ...mockUser, staffId: null };
+
+      expect(() => controller.getMyProgress(userNoStaff as any)).toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getPendingEvaluations', () => {
+    it('should return pending evaluations', async () => {
+      const mockPending = {
+        periodId: 1,
+        periodName: 'HK1',
+        pending: [{ staffId: 2, staffName: 'Staff 2', groupId: 1, groupName: 'Group A', totalColleagues: 3, evaluatedColleagues: 0 }],
+      };
+      mockEvaluationsService.getPendingEvaluations.mockResolvedValue(mockPending);
+
+      const result = await controller.getPendingEvaluations();
+
+      expect(result).toEqual(mockPending);
+      expect(mockEvaluationsService.getPendingEvaluations).toHaveBeenCalled();
+    });
+  });
+
+  describe('ensureStaffLinked', () => {
+    it('should throw ForbiddenException for endpoints requiring staffId when not linked', async () => {
+      const userNoStaff = { ...mockUser, staffId: null };
+
+      expect(() => controller.findMyGroups(userNoStaff as any)).toThrow(ForbiddenException);
+      expect(() => controller.findMy(userNoStaff as any, {})).toThrow(ForbiddenException);
+      expect(() => controller.findReceived(userNoStaff as any, {})).toThrow(ForbiddenException);
     });
   });
 });

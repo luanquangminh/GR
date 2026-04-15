@@ -1,14 +1,18 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { join } from 'path';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const logger = new Logger('Bootstrap');
 
-  // Security headers with Helmet
+  // Security headers with Helmet — relaxed for Swagger UI
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -19,14 +23,21 @@ async function bootstrap() {
           scriptSrc: ["'self'"],
         },
       },
-      crossOriginEmbedderPolicy: false, // Required for Swagger UI
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
 
   // Enable CORS with environment-based origins
-  const corsOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
-    : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:8080'];
+  const isProduction = process.env.NODE_ENV === 'production';
+  let corsOrigins: string[];
+  if (process.env.CORS_ORIGINS) {
+    corsOrigins = process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim());
+  } else if (isProduction) {
+    throw new Error('CORS_ORIGINS must be set in production. Example: CORS_ORIGINS=https://example.com');
+  } else {
+    corsOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:8080'];
+  }
 
   app.enableCors({
     origin: corsOrigins,
@@ -34,6 +45,17 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
+
+  // Serve uploaded files (avatars, etc.)
+  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
+
+  // Global exception filter and logging interceptor
+  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalInterceptors(new LoggingInterceptor());
+
+  // Request body size limit (prevent OOM from large payloads)
+  app.use(require('express').json({ limit: '100kb' }));
+  app.use(require('express').urlencoded({ limit: '100kb', extended: true }));
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -47,27 +69,31 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle('Staff Evaluation Hub API')
-    .setDescription('API for staff peer review evaluation system')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('auth', 'Authentication endpoints')
-    .addTag('staff', 'Staff management')
-    .addTag('groups', 'Group management')
-    .addTag('evaluations', 'Evaluation management')
-    .addTag('questions', 'Question management')
-    .addTag('users', 'User management')
-    .addTag('organization-units', 'Organization unit management')
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
-
   const port = process.env.PORT ?? 3001;
+
+  // Swagger documentation — only in non-production environments
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('Staff Evaluation Hub API')
+      .setDescription('API for staff peer review evaluation system. Use the Authorize button with a Bearer token to test authenticated endpoints.')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addTag('auth', 'Authentication & registration')
+      .addTag('staff', 'Staff management (CRUD)')
+      .addTag('groups', 'Group management & members')
+      .addTag('evaluations', 'Peer evaluation submission & queries')
+      .addTag('evaluation-periods', 'Evaluation period management')
+      .addTag('questions', 'Evaluation criteria management')
+      .addTag('organization-units', 'Department/Faculty management')
+      .addTag('users', 'User profiles & role management')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document);
+    logger.log(`Swagger docs available at: http://localhost:${port}/api`);
+  }
+
   await app.listen(port);
   logger.log(`Application is running on: http://localhost:${port}`);
-  logger.log(`Swagger docs available at: http://localhost:${port}/api`);
 }
 bootstrap();

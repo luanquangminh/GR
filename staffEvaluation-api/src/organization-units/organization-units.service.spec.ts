@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrganizationUnitsService } from './organization-units.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 describe('OrganizationUnitsService', () => {
   let service: OrganizationUnitsService;
@@ -14,6 +15,12 @@ describe('OrganizationUnitsService', () => {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+    },
+    staff: {
+      count: jest.fn(),
+    },
+    group: {
+      count: jest.fn(),
     },
   };
 
@@ -120,12 +127,27 @@ describe('OrganizationUnitsService', () => {
       await expect(service.update(999, { name: 'Test' })).rejects.toThrow(NotFoundException);
       await expect(service.update(999, { name: 'Test' })).rejects.toThrow('Organization unit with ID 999 not found');
     });
+
+    it('should throw ConflictException on duplicate name', async () => {
+      const existingUnit = { id: 1, name: 'Old Unit' };
+      mockPrismaService.organizationUnit.findUnique.mockResolvedValue(existingUnit);
+      const prismaError = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '5.0.0',
+        meta: { target: ['name'] },
+      });
+      mockPrismaService.organizationUnit.update.mockRejectedValue(prismaError);
+
+      await expect(service.update(1, { name: 'Duplicate' })).rejects.toThrow(ConflictException);
+    });
   });
 
   describe('remove', () => {
     it('should delete an organization unit', async () => {
       const existingUnit = { id: 1, name: 'Unit to Delete' };
       mockPrismaService.organizationUnit.findUnique.mockResolvedValue(existingUnit);
+      mockPrismaService.staff.count.mockResolvedValue(0);
+      mockPrismaService.group.count.mockResolvedValue(0);
       mockPrismaService.organizationUnit.delete.mockResolvedValue(existingUnit);
 
       const result = await service.remove(1);

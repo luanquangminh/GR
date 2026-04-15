@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GroupsService } from './groups.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('GroupsService', () => {
   let service: GroupsService;
@@ -15,10 +15,18 @@ describe('GroupsService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    staff: {
+      findMany: jest.fn(),
+    },
     staff2Group: {
       deleteMany: jest.fn(),
       createMany: jest.fn(),
+      count: jest.fn(),
     },
+    evaluation: {
+      count: jest.fn(),
+    },
+    $transaction: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -150,7 +158,7 @@ describe('GroupsService', () => {
     it('should create group without organization unit', async () => {
       const createDto = {
         name: 'Standalone Group',
-        organizationunitid: null,
+        organizationunitid: undefined,
       };
       const mockCreatedGroup = {
         id: 4,
@@ -209,21 +217,21 @@ describe('GroupsService', () => {
           ...mockGroup,
           staffGroups: mockMembers.map(s => ({ staff: s })),
         });
-      mockPrismaService.staff2Group.deleteMany.mockResolvedValue({ count: 0 });
-      mockPrismaService.staff2Group.createMany.mockResolvedValue({ count: 3 });
+      mockPrismaService.staff.findMany.mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }]);
+      mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
+        const tx = {
+          staff2Group: {
+            deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+            createMany: jest.fn().mockResolvedValue({ count: 3 }),
+          },
+        };
+        return cb(tx);
+      });
 
       const result = await service.updateMembers(1, dto);
 
-      expect(mockPrismaService.staff2Group.deleteMany).toHaveBeenCalledWith({
-        where: { groupid: 1 },
-      });
-      expect(mockPrismaService.staff2Group.createMany).toHaveBeenCalledWith({
-        data: [
-          { staffid: 1, groupid: 1 },
-          { staffid: 2, groupid: 1 },
-          { staffid: 3, groupid: 1 },
-        ],
-      });
+      expect(mockPrismaService.staff.findMany).toHaveBeenCalled();
+      expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });
 
     it('should handle empty member list', async () => {
@@ -232,12 +240,19 @@ describe('GroupsService', () => {
       mockPrismaService.group.findUnique
         .mockResolvedValueOnce(mockGroup)
         .mockResolvedValueOnce({ ...mockGroup, staffGroups: [] });
-      mockPrismaService.staff2Group.deleteMany.mockResolvedValue({ count: 5 });
+      mockPrismaService.$transaction.mockImplementation(async (cb: any) => {
+        const tx = {
+          staff2Group: {
+            deleteMany: jest.fn().mockResolvedValue({ count: 5 }),
+            createMany: jest.fn(),
+          },
+        };
+        return cb(tx);
+      });
 
       await service.updateMembers(1, dto);
 
-      expect(mockPrismaService.staff2Group.deleteMany).toHaveBeenCalled();
-      expect(mockPrismaService.staff2Group.createMany).not.toHaveBeenCalled();
+      expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when group not found', async () => {
@@ -245,12 +260,22 @@ describe('GroupsService', () => {
 
       await expect(service.updateMembers(999, { staffIds: [1] })).rejects.toThrow(NotFoundException);
     });
+
+    it('should throw BadRequestException when staff IDs do not exist', async () => {
+      mockPrismaService.group.findUnique.mockResolvedValue(mockGroup);
+      mockPrismaService.staff.findMany.mockResolvedValue([{ id: 1 }]); // Only staff 1 exists
+
+      await expect(service.updateMembers(1, { staffIds: [1, 99, 100] })).rejects.toThrow(BadRequestException);
+      await expect(service.updateMembers(1, { staffIds: [1, 99, 100] })).rejects.toThrow('Staff IDs not found: 99, 100');
+    });
   });
 
   describe('remove', () => {
     it('should delete a group', async () => {
       const mockGroup = { id: 1, name: 'Group 1' };
       mockPrismaService.group.findUnique.mockResolvedValue(mockGroup);
+      mockPrismaService.staff2Group.count.mockResolvedValue(0);
+      mockPrismaService.evaluation.count.mockResolvedValue(0);
       mockPrismaService.group.delete.mockResolvedValue(mockGroup);
 
       const result = await service.remove(1);

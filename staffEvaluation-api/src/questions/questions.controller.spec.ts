@@ -43,7 +43,7 @@ describe('QuestionsController', () => {
       ];
       mockQuestionsService.findAll.mockResolvedValue(mockQuestions);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll({});
 
       expect(result).toEqual(mockQuestions);
       expect(mockQuestionsService.findAll).toHaveBeenCalledTimes(1);
@@ -52,7 +52,7 @@ describe('QuestionsController', () => {
     it('should return empty array when no questions exist', async () => {
       mockQuestionsService.findAll.mockResolvedValue([]);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll({});
 
       expect(result).toEqual([]);
     });
@@ -83,7 +83,7 @@ describe('QuestionsController', () => {
     });
 
     it('should create question with null description', async () => {
-      const createDto = { title: 'Question without desc', description: null };
+      const createDto = { title: 'Question without desc', description: undefined };
       const mockCreatedQuestion = { id: 4, ...createDto };
       mockQuestionsService.create.mockResolvedValue(mockCreatedQuestion);
 

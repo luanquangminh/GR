@@ -1,12 +1,42 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { CreateStaffDto, UpdateStaffDto } from './dto/staff.dto';
+import { JwtPayload } from '../auth/strategies/jwt.strategy';
+import { PaginationDto, PaginatedResult } from '../common/dto/pagination.dto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class StaffService {
+  private readonly logger = new Logger(StaffService.name);
+
   constructor(private prisma: PrismaService) { }
 
-  async findAll() {
+  async findAll(pagination?: PaginationDto) {
+    if (pagination?.page && pagination?.limit) {
+      const { page, limit } = pagination;
+      const [data, total] = await Promise.all([
+        this.prisma.staff.findMany({
+          orderBy: { id: 'asc' },
+          include: { organizationUnit: true },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        this.prisma.staff.count(),
+      ]);
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      } satisfies PaginatedResult<typeof data[number]>;
+    }
+
     return this.prisma.staff.findMany({
       orderBy: { id: 'asc' },
       include: {
@@ -36,15 +66,23 @@ export class StaffService {
   }
 
   async create(dto: CreateStaffDto) {
-    return this.prisma.staff.create({
-      data: dto,
-      include: {
-        organizationUnit: true,
-      },
-    });
+    try {
+      return await this.prisma.staff.create({
+        data: dto,
+        include: {
+          organizationUnit: true,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const fields = (error.meta?.target as string[])?.join(', ') || 'unknown field';
+        throw new ConflictException(`Staff with duplicate ${fields} already exists`);
+      }
+      throw error;
+    }
   }
 
-  async update(id: number, dto: UpdateStaffDto, user: any) {
+  async update(id: number, dto: UpdateStaffDto, user: JwtPayload & { id: string }) {
     const staff = await this.prisma.staff.findUnique({ where: { id } });
 
     if (!staff) {
@@ -53,19 +91,34 @@ export class StaffService {
 
     // Check if user is admin or updating their own profile
     const isAdmin = user.roles?.includes('admin');
-    const isOwnProfile = user.staffId === id;
+    const isOwnProfile = user.staffId != null && user.staffId === id;
 
     if (!isAdmin && !isOwnProfile) {
       throw new ForbiddenException('You can only update your own profile');
     }
 
-    return this.prisma.staff.update({
-      where: { id },
-      data: dto,
-      include: {
-        organizationUnit: true,
-      },
-    });
+    // Non-admin users can only update safe profile fields
+    let updateData: Partial<UpdateStaffDto> = dto;
+    if (!isAdmin) {
+      const { staffcode, organizationunitid, bidv, position, isPartyMember, ...safeFields } = dto;
+      updateData = safeFields;
+    }
+
+    try {
+      return await this.prisma.staff.update({
+        where: { id },
+        data: updateData,
+        include: {
+          organizationUnit: true,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const fields = (error.meta?.target as string[])?.join(', ') || 'unknown field';
+        throw new ConflictException(`Staff with duplicate ${fields} already exists`);
+      }
+      throw error;
+    }
   }
 
   async remove(id: number) {
@@ -75,6 +128,46 @@ export class StaffService {
       throw new NotFoundException(`Staff with ID ${id} not found`);
     }
 
+    const [evalCount, groupCount] = await Promise.all([
+      this.prisma.evaluation.count({ where: { OR: [{ reviewerid: id }, { evaluateeid: id }] } }),
+      this.prisma.staff2Group.count({ where: { staffid: id } }),
+    ]);
+
+    if (evalCount > 0 || groupCount > 0) {
+      this.logger.warn(
+        `Deleting staff "${staff.name}" (ID ${id}) — cascading ${evalCount} evaluation(s), ${groupCount} group membership(s)`,
+      );
+    }
+
     return this.prisma.staff.delete({ where: { id } });
+  }
+
+  async updateAvatar(id: number, filePath: string, user: JwtPayload & { id: string }) {
+    const staff = await this.prisma.staff.findUnique({ where: { id } });
+
+    if (!staff) {
+      throw new NotFoundException(`Staff with ID ${id} not found`);
+    }
+
+    const isAdmin = user.roles?.includes('admin');
+    const isOwnProfile = user.staffId != null && user.staffId === id;
+
+    if (!isAdmin && !isOwnProfile) {
+      throw new ForbiddenException('You can only update your own avatar');
+    }
+
+    // Delete old avatar file if exists
+    if (staff.avatar) {
+      const oldPath = path.join(process.cwd(), staff.avatar);
+      fs.promises.unlink(oldPath).catch(err =>
+        this.logger.warn(`Failed to delete old avatar: ${err.message}`),
+      );
+    }
+
+    return this.prisma.staff.update({
+      where: { id },
+      data: { avatar: filePath },
+      include: { organizationUnit: true },
+    });
   }
 }

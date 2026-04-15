@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -25,8 +26,15 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {
-    const jwtSecret = this.configService.get<string>('JWT_SECRET') || 'default-secret';
-    this.refreshTokenSecret = jwtSecret + '-refresh';
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET environment variable is not set');
+    }
+    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET');
+    if (!refreshSecret) {
+      Logger.warn('JWT_REFRESH_SECRET not set — deriving from JWT_SECRET. Set it explicitly in production.', 'AuthService');
+    }
+    this.refreshTokenSecret = refreshSecret || jwtSecret + '-refresh';
   }
 
   async register(dto: RegisterDto) {
@@ -37,7 +45,7 @@ export class AuthService {
     if (exists) {
       if (!exists.passwordHash) {
         throw new ConflictException(
-          'Email này đã được đăng ký qua tài khoản Microsoft. Vui lòng dùng nút "Đăng nhập bằng tài khoản HUST".',
+          'This email is registered via Microsoft. Please use the "Sign in with HUST account" button.',
         );
       }
       throw new ConflictException('Email already registered');
@@ -80,7 +88,7 @@ export class AuthService {
 
     if (!user.passwordHash) {
       throw new UnauthorizedException(
-        'Tài khoản này dùng đăng nhập Microsoft. Vui lòng dùng nút "Đăng nhập bằng tài khoản HUST".',
+        'This account uses Microsoft sign-in. Please use the "Sign in with HUST account" button.',
       );
     }
 
@@ -92,7 +100,7 @@ export class AuthService {
     return this.generateTokenResponse(user);
   }
 
-  async refreshToken(userId: string) {
+  async refreshToken(userId: string, tokenVersion?: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -105,7 +113,18 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    return this.generateTokenResponse(user);
+    // Validate token version — reject tokens issued before a forced logout
+    if (tokenVersion !== undefined && tokenVersion !== user.tokenVersion) {
+      throw new UnauthorizedException('Token has been revoked');
+    }
+
+    // Increment token version to invalidate the old refresh token
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { tokenVersion: { increment: 1 } },
+    });
+
+    return this.generateTokenResponse({ ...user, tokenVersion: user.tokenVersion + 1 });
   }
 
   async getMe(userId: string) {
@@ -130,7 +149,7 @@ export class AuthService {
     };
   }
 
-  generateTokenResponse(user: UserWithRelations) {
+  generateTokenResponse(user: UserWithRelations & { tokenVersion?: number }) {
     const accessPayload = {
       sub: user.id,
       email: user.email,
@@ -142,12 +161,13 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       type: 'refresh',
+      tokenVersion: user.tokenVersion ?? 0,
     };
 
     const accessToken = this.jwtService.sign(accessPayload);
     const refreshToken = this.jwtService.sign(refreshPayload, {
       secret: this.refreshTokenSecret,
-      expiresIn: '7d', // Refresh token expires in 7 days
+      expiresIn: '3h', // Refresh token expires in 3 hours
     });
 
     return {

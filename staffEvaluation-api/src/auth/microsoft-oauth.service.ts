@@ -27,6 +27,9 @@ export class MicrosoftOAuthService {
     { accessToken: string; refreshToken: string; expiresAt: number }
   >();
 
+  // In-memory store for OAuth state parameters (CSRF protection)
+  private readonly pendingStates = new Set<string>();
+
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
@@ -82,6 +85,12 @@ export class MicrosoftOAuthService {
     return response.json() as Promise<MicrosoftTokenResponse>;
   }
 
+  /**
+   * Decode id_token payload.
+   * NOTE: Signature verification is not needed here because the id_token was received
+   * directly from Microsoft's token endpoint over HTTPS (server-to-server) in exchangeCode(),
+   * not from an untrusted client. The token exchange guarantees authenticity.
+   */
   decodeIdToken(idToken: string): MicrosoftProfile {
     const parts = idToken.split('.');
     if (parts.length !== 3) {
@@ -115,7 +124,8 @@ export class MicrosoftOAuthService {
   }
 
   validateHustDomain(email: string): boolean {
-    return /^[^@]+@.+\.hust\.edu\.vn$/i.test(email);
+    // Match exact @hust.edu.vn or direct subdomains like @sis.hust.edu.vn
+    return /^[^@]+@([a-z0-9-]+\.)?hust\.edu\.vn$/i.test(email);
   }
 
   /**
@@ -244,8 +254,19 @@ export class MicrosoftOAuthService {
     return user;
   }
 
+  validateState(state: string | undefined): boolean {
+    if (!state) return false;
+    const valid = this.pendingStates.has(state);
+    this.pendingStates.delete(state); // One-time use
+    return valid;
+  }
+
   private generateState(): string {
-    return randomBytes(16).toString('hex');
+    const state = randomBytes(16).toString('hex');
+    this.pendingStates.add(state);
+    // Auto-expire after 10 minutes
+    setTimeout(() => this.pendingStates.delete(state), 10 * 60 * 1000);
+    return state;
   }
 
   private cleanExpiredCodes(): void {

@@ -13,12 +13,18 @@ import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'default-secret',
-        signOptions: {
-          expiresIn: '15m', // Access token expires in 15 minutes
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error('JWT_SECRET environment variable is not set. Cannot start the application without it.');
+        }
+        return {
+          secret,
+          signOptions: {
+            expiresIn: '15m', // Access token expires in 15 minutes
+          },
+        };
+      },
       inject: [ConfigService],
     }),
   ],

@@ -12,7 +12,12 @@ describe('EvaluationPeriodsService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
+    },
+    evaluation: {
+      count: jest.fn(),
     },
   };
 
@@ -49,6 +54,19 @@ describe('EvaluationPeriodsService', () => {
       expect(mockPrismaService.evaluationPeriod.findMany).toHaveBeenCalledWith({
         orderBy: { startDate: 'desc' },
       });
+    });
+  });
+
+  describe('findAll (pagination)', () => {
+    it('should return paginated results when page and limit provided', async () => {
+      const mockData = [{ id: 1, name: 'HK1' }];
+      mockPrismaService.evaluationPeriod.findMany.mockResolvedValue(mockData);
+      mockPrismaService.evaluationPeriod.count.mockResolvedValue(25);
+
+      const result = await service.findAll({ page: 1, limit: 10 }) as any;
+
+      expect(result.data).toEqual(mockData);
+      expect(result.meta).toEqual({ total: 25, page: 1, limit: 10, totalPages: 3 });
     });
   });
 
@@ -112,13 +130,45 @@ describe('EvaluationPeriodsService', () => {
 
   describe('update', () => {
     it('should update a period', async () => {
-      const mockPeriod = { id: 1, name: 'HK1', status: 'draft' };
+      const mockPeriod = { id: 1, name: 'HK1', status: 'draft', startDate: new Date('2025-01-01'), endDate: new Date('2025-06-01') };
       mockPrismaService.evaluationPeriod.findUnique.mockResolvedValue(mockPeriod);
+      mockPrismaService.evaluationPeriod.updateMany.mockResolvedValue({ count: 0 });
       mockPrismaService.evaluationPeriod.update.mockResolvedValue({ ...mockPeriod, status: 'active' });
 
       const result = await service.update(1, { status: 'active' as any });
 
       expect(result.status).toBe('active');
+    });
+
+    it('should auto-close other active periods when activating', async () => {
+      const mockPeriod = { id: 1, name: 'HK1', status: 'draft', startDate: new Date('2025-01-01'), endDate: new Date('2025-06-01') };
+      mockPrismaService.evaluationPeriod.findUnique.mockResolvedValue(mockPeriod);
+      mockPrismaService.evaluationPeriod.updateMany.mockResolvedValue({ count: 2 });
+      mockPrismaService.evaluationPeriod.update.mockResolvedValue({ ...mockPeriod, status: 'active' });
+
+      await service.update(1, { status: 'active' as any });
+
+      expect(mockPrismaService.evaluationPeriod.updateMany).toHaveBeenCalledWith({
+        where: { status: 'active', id: { not: 1 } },
+        data: { status: 'closed' },
+      });
+    });
+
+    it('should not auto-close when period is already active', async () => {
+      const mockPeriod = { id: 1, name: 'HK1', status: 'active', startDate: new Date('2025-01-01'), endDate: new Date('2025-06-01') };
+      mockPrismaService.evaluationPeriod.findUnique.mockResolvedValue(mockPeriod);
+      mockPrismaService.evaluationPeriod.update.mockResolvedValue({ ...mockPeriod, name: 'Updated' });
+
+      await service.update(1, { name: 'Updated' });
+
+      expect(mockPrismaService.evaluationPeriod.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when endDate is before startDate', async () => {
+      const mockPeriod = { id: 1, name: 'HK1', status: 'draft', startDate: new Date('2025-01-01'), endDate: new Date('2025-06-01') };
+      mockPrismaService.evaluationPeriod.findUnique.mockResolvedValue(mockPeriod);
+
+      await expect(service.update(1, { startDate: '2025-12-01', endDate: '2025-01-01' })).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException when period not found', async () => {
@@ -132,6 +182,7 @@ describe('EvaluationPeriodsService', () => {
     it('should delete a period', async () => {
       const mockPeriod = { id: 1, name: 'HK1' };
       mockPrismaService.evaluationPeriod.findUnique.mockResolvedValue(mockPeriod);
+      mockPrismaService.evaluation.count.mockResolvedValue(0);
       mockPrismaService.evaluationPeriod.delete.mockResolvedValue(mockPeriod);
 
       const result = await service.remove(1);

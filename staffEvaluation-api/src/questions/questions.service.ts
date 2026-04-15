@@ -1,12 +1,35 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateQuestionDto, UpdateQuestionDto } from './dto/questions.dto';
+import { PaginationDto, PaginatedResult } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class QuestionsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(pagination?: PaginationDto) {
+    if (pagination?.page && pagination?.limit) {
+      const { page, limit } = pagination;
+      const [data, total] = await Promise.all([
+        this.prisma.question.findMany({
+          orderBy: { id: 'asc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        this.prisma.question.count(),
+      ]);
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      } satisfies PaginatedResult<typeof data[number]>;
+    }
+
     return this.prisma.question.findMany({
       orderBy: { id: 'asc' },
     });

@@ -1,12 +1,38 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateGroupDto, UpdateGroupDto, UpdateGroupMembersDto } from './dto/groups.dto';
+import { PaginationDto, PaginatedResult } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class GroupsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(GroupsService.name);
 
-  async findAll() {
+  constructor(private prisma: PrismaService) { }
+
+  async findAll(pagination?: PaginationDto) {
+    if (pagination?.page && pagination?.limit) {
+      const { page, limit } = pagination;
+      const [data, total] = await Promise.all([
+        this.prisma.group.findMany({
+          orderBy: { id: 'asc' },
+          include: { organizationUnit: true },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        this.prisma.group.count(),
+      ]);
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      } satisfies PaginatedResult<typeof data[number]>;
+    }
+
     return this.prisma.group.findMany({
       orderBy: { id: 'asc' },
       include: {
@@ -86,20 +112,36 @@ export class GroupsService {
       throw new NotFoundException(`Group with ID ${id} not found`);
     }
 
-    // Delete existing members
-    await this.prisma.staff2Group.deleteMany({
-      where: { groupid: id },
-    });
+    // Deduplicate and verify all staff IDs exist
+    const uniqueIds = [...new Set(dto.staffIds)];
 
-    // Add new members
-    if (dto.staffIds.length > 0) {
-      await this.prisma.staff2Group.createMany({
-        data: dto.staffIds.map((staffid) => ({
-          staffid,
-          groupid: id,
-        })),
+    if (uniqueIds.length > 0) {
+      const existingStaff = await this.prisma.staff.findMany({
+        where: { id: { in: uniqueIds } },
+        select: { id: true },
       });
+      const existingIds = new Set(existingStaff.map(s => s.id));
+      const invalidIds = uniqueIds.filter(id => !existingIds.has(id));
+      if (invalidIds.length > 0) {
+        throw new BadRequestException(`Staff IDs not found: ${invalidIds.join(', ')}`);
+      }
     }
+
+    // Atomic: delete old members and add new ones in a single transaction
+    await this.prisma.$transaction(async (tx) => {
+      await tx.staff2Group.deleteMany({
+        where: { groupid: id },
+      });
+
+      if (uniqueIds.length > 0) {
+        await tx.staff2Group.createMany({
+          data: uniqueIds.map((staffid) => ({
+            staffid,
+            groupid: id,
+          })),
+        });
+      }
+    });
 
     return this.getMembers(id);
   }
@@ -109,6 +151,17 @@ export class GroupsService {
 
     if (!group) {
       throw new NotFoundException(`Group with ID ${id} not found`);
+    }
+
+    const [memberCount, evalCount] = await Promise.all([
+      this.prisma.staff2Group.count({ where: { groupid: id } }),
+      this.prisma.evaluation.count({ where: { groupid: id } }),
+    ]);
+
+    if (memberCount > 0 || evalCount > 0) {
+      this.logger.warn(
+        `Deleting group "${group.name}" (ID ${id}) — cascading ${memberCount} member(s), ${evalCount} evaluation(s)`,
+      );
     }
 
     return this.prisma.group.delete({ where: { id } });

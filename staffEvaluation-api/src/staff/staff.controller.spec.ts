@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { StaffController } from './staff.controller';
 import { StaffService } from './staff.service';
 
@@ -12,6 +13,7 @@ describe('StaffController', () => {
     create: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
+    updateAvatar: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -43,7 +45,7 @@ describe('StaffController', () => {
       ];
       mockStaffService.findAll.mockResolvedValue(mockStaff);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll({});
 
       expect(result).toEqual(mockStaff);
       expect(mockStaffService.findAll).toHaveBeenCalledTimes(1);
@@ -82,7 +84,7 @@ describe('StaffController', () => {
   describe('update', () => {
     it('should update a staff member', async () => {
       const updateDto = { name: 'Updated Name' };
-      const mockUser = { id: 'user-1', roles: ['admin'], staffId: 99 };
+      const mockUser = { id: 'user-1', sub: 'user-1', email: 'test@test.com', roles: ['admin'], staffId: 99 };
       const mockUpdatedStaff = { id: 1, name: 'Updated Name', staffcode: 'GV001' };
       mockStaffService.update.mockResolvedValue(mockUpdatedStaff);
 
@@ -94,7 +96,7 @@ describe('StaffController', () => {
 
     it('should pass user context for authorization', async () => {
       const updateDto = { name: 'My Name' };
-      const mockUser = { id: 'user-1', roles: ['user'], staffId: 1 };
+      const mockUser = { id: 'user-1', sub: 'user-1', email: 'test@test.com', roles: ['user'], staffId: 1 };
       mockStaffService.update.mockResolvedValue({ id: 1, ...updateDto });
 
       await controller.update(1, updateDto, mockUser);
@@ -112,6 +114,26 @@ describe('StaffController', () => {
 
       expect(result).toEqual(mockStaff);
       expect(mockStaffService.remove).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('uploadAvatar', () => {
+    const mockUser = { id: 'user-1', sub: 'user-1', email: 'test@test.com', roles: ['admin'], staffId: 1 };
+
+    it('should upload avatar and return url', async () => {
+      const mockFile = { filename: '1-12345.jpg' } as Express.Multer.File;
+      const mockStaff = { id: 1, name: 'John Doe', avatar: '/uploads/avatars/1-12345.jpg' };
+      mockStaffService.updateAvatar.mockResolvedValue(mockStaff);
+
+      const result = await controller.uploadAvatar(1, mockFile, mockUser);
+
+      expect(result.avatarUrl).toBe('/uploads/avatars/1-12345.jpg');
+      expect(result.staff).toEqual(mockStaff);
+      expect(mockStaffService.updateAvatar).toHaveBeenCalledWith(1, '/uploads/avatars/1-12345.jpg', mockUser);
+    });
+
+    it('should throw BadRequestException when no file provided', async () => {
+      await expect(controller.uploadAvatar(1, undefined as any, mockUser)).rejects.toThrow(BadRequestException);
     });
   });
 });

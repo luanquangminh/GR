@@ -13,6 +13,7 @@ model User {
   passwordHash String?    @map("password_hash")
   provider     String     @default("local")
   microsoftId  String?    @unique @map("microsoft_id")
+  tokenVersion Int        @default(0) @map("token_version")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
   profile      Profile?
@@ -70,13 +71,14 @@ model Staff {
   isPartyMember       Boolean           @default(false) @map("is_party_member")
 
   organizationunitid  Int?              @map("organizationunitid")
+  avatar              String?           @map("avatar")
   bidv                String?
   createdAt           DateTime          @default(now()) @map("created_at")
   updatedAt           DateTime          @updatedAt @map("updated_at")
   evaluationsGiven    Evaluation[]      @relation("reviewer")
   evaluationsReceived Evaluation[]      @relation("evaluatee")
   profile             Profile?
-  organizationUnit    OrganizationUnit? @relation(fields: [organizationunitid], references: [id])
+  organizationUnit    OrganizationUnit? @relation(fields: [organizationunitid], references: [id], onDelete: SetNull)
   staffGroups         Staff2Group[]
 
   @@index([organizationunitid])
@@ -90,7 +92,7 @@ model Group {
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
   evaluations        Evaluation[]
-  organizationUnit   OrganizationUnit? @relation(fields: [organizationunitid], references: [id])
+  organizationUnit   OrganizationUnit? @relation(fields: [organizationunitid], references: [id], onDelete: SetNull)
   staffGroups        Staff2Group[]
   subjects           Subject[]
 

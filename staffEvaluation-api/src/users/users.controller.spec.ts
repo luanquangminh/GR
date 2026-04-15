@@ -45,7 +45,7 @@ describe('UsersController', () => {
       const mockProfiles = [{ id: '1', userId: 'user-1' }];
       mockUsersService.getProfiles.mockResolvedValue(mockProfiles);
 
-      const result = await controller.getProfiles();
+      const result = await controller.getProfiles({});
 
       expect(result).toEqual(mockProfiles);
       expect(mockUsersService.getProfiles).toHaveBeenCalled();
@@ -57,7 +57,7 @@ describe('UsersController', () => {
       const mockProfile = { id: '1', userId: 'user-1', staffId: 1 };
       mockUsersService.getProfile.mockResolvedValue(mockProfile);
 
-      const result = await controller.getMyProfile({ id: 'user-1' });
+      const result = await controller.getMyProfile({ id: 'user-1', sub: 'user-1', email: 'test@test.com', staffId: 1, roles: ['user'] });
 
       expect(result).toEqual(mockProfile);
       expect(mockUsersService.getProfile).toHaveBeenCalledWith('user-1');

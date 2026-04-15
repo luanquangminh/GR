@@ -9,8 +9,9 @@ import {
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { EvaluationsService } from './evaluations.service';
-import { BulkEvaluationDto } from './dto/evaluations.dto';
+import { BulkEvaluationDto, EvaluationQueryDto, EvaluationMyQueryDto } from './dto/evaluations.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -32,23 +33,31 @@ export class EvaluationsController {
     return user.staffId;
   }
 
+  @Get('pending')
+  @Roles('admin', 'moderator')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Get staff who have not completed evaluations in the active period (admin/moderator only)' })
+  @ApiResponse({ status: 200, description: 'List of pending evaluations per staff' })
+  getPendingEvaluations() {
+    return this.evaluationsService.getPendingEvaluations();
+  }
+
+  @Get('my-progress')
+  @ApiOperation({ summary: 'Get current user evaluation progress for the active period' })
+  @ApiResponse({ status: 200, description: 'Evaluation progress per group' })
+  @ApiResponse({ status: 403, description: 'User not linked to staff' })
+  getMyProgress(@CurrentUser() user: JwtPayload & { id: string }) {
+    const staffId = this.ensureStaffLinked(user);
+    return this.evaluationsService.getMyProgress(staffId);
+  }
+
   @Get()
   @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Get all evaluations (admin/moderator only)' })
   @ApiResponse({ status: 200, description: 'List of evaluations' })
-  findAll(
-    @Query('groupId') groupId?: string,
-    @Query('reviewerId') reviewerId?: string,
-    @Query('evaluateeId') evaluateeId?: string,
-    @Query('periodId') periodId?: string,
-  ) {
-    return this.evaluationsService.findAll({
-      groupId: groupId ? parseInt(groupId, 10) : undefined,
-      reviewerId: reviewerId ? parseInt(reviewerId, 10) : undefined,
-      evaluateeId: evaluateeId ? parseInt(evaluateeId, 10) : undefined,
-      periodId: periodId ? parseInt(periodId, 10) : undefined,
-    });
+  findAll(@Query() query: EvaluationQueryDto) {
+    return this.evaluationsService.findAll(query);
   }
 
   @Get('my')
@@ -57,15 +66,10 @@ export class EvaluationsController {
   @ApiResponse({ status: 403, description: 'User not linked to staff' })
   findMy(
     @CurrentUser() user: JwtPayload & { id: string },
-    @Query('groupId') groupId?: string,
-    @Query('periodId') periodId?: string,
+    @Query() query: EvaluationMyQueryDto,
   ) {
     const staffId = this.ensureStaffLinked(user);
-    return this.evaluationsService.findByReviewer(
-      staffId,
-      groupId ? parseInt(groupId, 10) : undefined,
-      periodId ? parseInt(periodId, 10) : undefined,
-    );
+    return this.evaluationsService.findByReviewer(staffId, query.groupId, query.periodId);
   }
 
   @Get('received')
@@ -74,15 +78,10 @@ export class EvaluationsController {
   @ApiResponse({ status: 403, description: 'User not linked to staff' })
   findReceived(
     @CurrentUser() user: JwtPayload & { id: string },
-    @Query('groupId') groupId?: string,
-    @Query('periodId') periodId?: string,
+    @Query() query: EvaluationMyQueryDto,
   ) {
     const staffId = this.ensureStaffLinked(user);
-    return this.evaluationsService.findByEvaluatee(
-      staffId,
-      groupId ? parseInt(groupId, 10) : undefined,
-      periodId ? parseInt(periodId, 10) : undefined,
-    );
+    return this.evaluationsService.findByEvaluatee(staffId, query.groupId, query.periodId);
   }
 
   @Get('my-groups')
@@ -106,6 +105,18 @@ export class EvaluationsController {
     return this.evaluationsService.findColleagues(groupId, staffId);
   }
 
+  @Get('staff/:staffId/received')
+  @Roles('admin', 'moderator')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Get evaluations received by a specific staff member (closed periods only, admin/moderator)' })
+  @ApiResponse({ status: 200, description: 'List of evaluations received by the staff member' })
+  findStaffReceived(
+    @Param('staffId', ParseIntPipe) staffId: number,
+    @Query() query: EvaluationMyQueryDto,
+  ) {
+    return this.evaluationsService.findByEvaluateeClosedPeriods(staffId, query.periodId);
+  }
+
   @Get('staff2groups')
   @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
@@ -116,6 +127,8 @@ export class EvaluationsController {
   }
 
   @Post('bulk')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @ApiOperation({ summary: 'Submit bulk evaluations for an active period' })
   @ApiResponse({ status: 201, description: 'Evaluations created/updated' })
   @ApiResponse({ status: 403, description: 'User not linked to staff' })

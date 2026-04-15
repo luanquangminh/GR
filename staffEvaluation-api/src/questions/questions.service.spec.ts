@@ -107,7 +107,7 @@ describe('QuestionsService', () => {
     it('should create question with null description', async () => {
       const createDto = {
         title: 'Question without description',
-        description: null,
+        description: undefined,
       };
       const mockCreatedQuestion = {
         id: 4,

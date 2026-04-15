@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { UnauthorizedException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { MicrosoftOAuthService } from './microsoft-oauth.service';
@@ -22,7 +23,10 @@ describe('AuthController', () => {
     exchangeCode: jest.fn(),
     decodeIdToken: jest.fn(),
     validateHustDomain: jest.fn(),
+    validateState: jest.fn(),
     findOrCreateUser: jest.fn(),
+    storeOneTimeCode: jest.fn(),
+    consumeOneTimeCode: jest.fn(),
   };
 
   const mockConfigService = {
@@ -134,7 +138,7 @@ describe('AuthController', () => {
 
   describe('getMe', () => {
     it('should return current user info', async () => {
-      const mockUser = { id: 'user-123', sub: 'user-123', email: 'test@example.com' };
+      const mockUser = { id: 'user-123', sub: 'user-123', email: 'test@example.com', staffId: 1, roles: ['user'] };
       const mockResponse = {
         id: 'user-123',
         email: 'test@example.com',
@@ -151,7 +155,7 @@ describe('AuthController', () => {
     });
 
     it('should return admin user', async () => {
-      const mockUser = { id: 'admin-123', sub: 'admin-123', email: 'admin@example.com' };
+      const mockUser = { id: 'admin-123', sub: 'admin-123', email: 'admin@example.com', staffId: 1, roles: ['admin'] };
       const mockResponse = {
         id: 'admin-123',
         email: 'admin@example.com',
@@ -169,7 +173,7 @@ describe('AuthController', () => {
 
   describe('refresh', () => {
     it('should refresh token', async () => {
-      const mockUser = { id: 'user-123', sub: 'user-123', email: 'test@example.com' };
+      const mockUser = { id: 'user-123', sub: 'user-123', email: 'test@example.com', staffId: 1, roles: ['user'], tokenVersion: 0 };
       const refreshDto = { refreshToken: 'valid-refresh-token' };
       const mockResponse = {
         accessToken: 'new-jwt-token',
@@ -188,11 +192,11 @@ describe('AuthController', () => {
       const result = await controller.refresh(refreshDto, mockUser);
 
       expect(result).toEqual(mockResponse);
-      expect(mockAuthService.refreshToken).toHaveBeenCalledWith('user-123');
+      expect(mockAuthService.refreshToken).toHaveBeenCalledWith('user-123', 0);
     });
 
     it('should return new token with same user data', async () => {
-      const mockUser = { id: 'user-123', sub: 'user-123', email: 'test@example.com' };
+      const mockUser = { id: 'user-123', sub: 'user-123', email: 'test@example.com', staffId: 1, roles: ['user'], tokenVersion: 0 };
       const refreshDto = { refreshToken: 'valid-refresh-token' };
       const mockResponse = {
         accessToken: 'refreshed-token',
@@ -206,6 +210,108 @@ describe('AuthController', () => {
 
       expect(result.accessToken).toBe('refreshed-token');
       expect(result.user.id).toBe('user-123');
+    });
+  });
+
+  describe('microsoftLogin', () => {
+    it('should redirect to Microsoft authorization URL', () => {
+      mockMicrosoftOAuthService.getAuthorizationUrl.mockReturnValue('https://login.microsoft.com/authorize?...');
+      const mockRes = { redirect: jest.fn() } as any;
+
+      controller.microsoftLogin(mockRes);
+
+      expect(mockRes.redirect).toHaveBeenCalledWith('https://login.microsoft.com/authorize?...');
+    });
+  });
+
+  describe('microsoftCallback', () => {
+    const mockRes = { redirect: jest.fn() } as any;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should redirect with error when Microsoft returns error', async () => {
+      await controller.microsoftCallback(undefined as any, undefined as any, 'access_denied', 'User cancelled', mockRes);
+
+      expect(mockRes.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('error=access_denied'),
+      );
+    });
+
+    it('should redirect with error on invalid state', async () => {
+      mockMicrosoftOAuthService.validateState.mockReturnValue(false);
+
+      await controller.microsoftCallback('code123', 'bad-state', undefined as any, undefined as any, mockRes);
+
+      expect(mockRes.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('error=invalid_state'),
+      );
+    });
+
+    it('should redirect with error when no code provided', async () => {
+      mockMicrosoftOAuthService.validateState.mockReturnValue(true);
+
+      await controller.microsoftCallback(undefined as any, 'valid-state', undefined as any, undefined as any, mockRes);
+
+      expect(mockRes.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('error=no_code'),
+      );
+    });
+
+    it('should complete OAuth flow successfully', async () => {
+      mockMicrosoftOAuthService.validateState.mockReturnValue(true);
+      mockMicrosoftOAuthService.exchangeCode.mockResolvedValue({ id_token: 'id-token' });
+      mockMicrosoftOAuthService.decodeIdToken.mockReturnValue({ email: 'user@hust.edu.vn', name: 'User' });
+      mockMicrosoftOAuthService.validateHustDomain.mockReturnValue(true);
+      mockMicrosoftOAuthService.findOrCreateUser.mockResolvedValue({
+        id: 'user-1', email: 'user@hust.edu.vn', profile: null, roles: [{ role: 'user' }],
+      });
+      mockAuthService.generateTokenResponse.mockReturnValue({
+        accessToken: 'at', refreshToken: 'rt', expiresIn: 900, user: {},
+      });
+      mockMicrosoftOAuthService.storeOneTimeCode.mockReturnValue('otc-123');
+
+      await controller.microsoftCallback('code123', 'valid-state', undefined as any, undefined as any, mockRes);
+
+      expect(mockRes.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('code=otc-123'),
+      );
+    });
+
+    it('should redirect with error on invalid domain', async () => {
+      mockMicrosoftOAuthService.validateState.mockReturnValue(true);
+      mockMicrosoftOAuthService.exchangeCode.mockResolvedValue({ id_token: 'id-token' });
+      mockMicrosoftOAuthService.decodeIdToken.mockReturnValue({ email: 'user@gmail.com', name: 'User' });
+      mockMicrosoftOAuthService.validateHustDomain.mockReturnValue(false);
+
+      await controller.microsoftCallback('code123', 'valid-state', undefined as any, undefined as any, mockRes);
+
+      expect(mockRes.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('error=invalid_domain'),
+      );
+    });
+  });
+
+  describe('microsoftToken', () => {
+    it('should return tokens for valid one-time code', () => {
+      const mockTokens = { accessToken: 'at', refreshToken: 'rt' };
+      mockMicrosoftOAuthService.consumeOneTimeCode.mockReturnValue(mockTokens);
+
+      const result = controller.microsoftToken('otc-123');
+
+      expect(result).toEqual(mockTokens);
+    });
+
+    it('should throw UnauthorizedException for invalid code', () => {
+      mockMicrosoftOAuthService.consumeOneTimeCode.mockReturnValue(null);
+
+      expect(() => controller.microsoftToken('bad-code')).toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException for empty code', () => {
+      expect(() => controller.microsoftToken(undefined as any)).toThrow(UnauthorizedException);
+      expect(() => controller.microsoftToken('')).toThrow(UnauthorizedException);
     });
   });
 });

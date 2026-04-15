@@ -2,24 +2,47 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import { LinkStaffDto, AddRoleDto } from './dto/users.dto';
 import { AppRole } from '@prisma/client';
+import { PaginationDto, PaginatedResult } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async getProfiles() {
-    return this.prisma.profile.findMany({
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            createdAt: true,
-          },
+  async getProfiles(pagination?: PaginationDto) {
+    const include = {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
         },
-        staff: true,
       },
-    });
+      staff: true,
+    } as const;
+
+    if (pagination?.page && pagination?.limit) {
+      const { page, limit } = pagination;
+      const [data, total] = await Promise.all([
+        this.prisma.profile.findMany({
+          include,
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        this.prisma.profile.count(),
+      ]);
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      } satisfies PaginatedResult<typeof data[number]>;
+    }
+
+    return this.prisma.profile.findMany({ include });
   }
 
   async getProfile(userId: string) {
@@ -44,6 +67,12 @@ export class UsersService {
 
     if (!profile) {
       throw new NotFoundException('Profile not found');
+    }
+
+    // Verify the staff record exists
+    const staff = await this.prisma.staff.findUnique({ where: { id: dto.staffId } });
+    if (!staff) {
+      throw new NotFoundException(`Staff with ID ${dto.staffId} not found`);
     }
 
     // Check if staff is already linked

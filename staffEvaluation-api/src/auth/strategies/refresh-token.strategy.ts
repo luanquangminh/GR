@@ -10,17 +10,19 @@ export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refres
     private config: ConfigService,
     private prisma: PrismaService,
   ) {
-    const jwtRefreshSecret = config.get<string>('JWT_REFRESH_SECRET') || config.get<string>('JWT_SECRET');
-    if (!jwtRefreshSecret) {
+    const dedicatedSecret = config.get<string>('JWT_REFRESH_SECRET');
+    const jwtSecret = config.get<string>('JWT_SECRET');
+    const refreshSecret = dedicatedSecret || (jwtSecret ? jwtSecret + '-refresh' : null);
+    if (!refreshSecret) {
       throw new Error('JWT_REFRESH_SECRET or JWT_SECRET environment variable must be configured');
     }
     super({
       jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
-      secretOrKey: jwtRefreshSecret + '-refresh', // Use different secret for refresh tokens
+      secretOrKey: refreshSecret,
     });
   }
 
-  async validate(payload: { sub: string; email: string; type: string }) {
+  async validate(payload: { sub: string; email: string; type: string; tokenVersion?: number }) {
     if (payload.type !== 'refresh') {
       throw new UnauthorizedException('Invalid token type');
     }
@@ -42,6 +44,7 @@ export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refres
       email: user.email,
       staffId: user.profile?.staffId || null,
       roles: user.roles.map((r) => r.role),
+      tokenVersion: payload.tokenVersion,
     };
   }
 }

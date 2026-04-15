@@ -17,6 +17,7 @@ describe('AuthService', () => {
     user: {
       findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -105,7 +106,7 @@ describe('AuthService', () => {
 
       await expect(service.register(registerDto)).rejects.toThrow(ConflictException);
       await expect(service.register(registerDto)).rejects.toThrow(
-        'Email này đã được đăng ký qua tài khoản Microsoft',
+        'This email is registered via Microsoft',
       );
     });
   });
@@ -158,7 +159,7 @@ describe('AuthService', () => {
 
       await expect(service.login(loginDto)).rejects.toThrow(UnauthorizedException);
       await expect(service.login(loginDto)).rejects.toThrow(
-        'Tài khoản này dùng đăng nhập Microsoft',
+        'This account uses Microsoft sign-in',
       );
     });
 
@@ -184,23 +185,43 @@ describe('AuthService', () => {
       const mockUser = {
         id: 'user-123',
         email: 'test@example.com',
+        tokenVersion: 0,
         profile: { staffId: 1 },
         roles: [{ role: 'user' }],
       };
 
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+      mockPrismaService.user.update.mockResolvedValue(mockUser);
       mockJwtService.sign.mockReturnValue('new-jwt-token');
 
-      const result = await service.refreshToken('user-123');
+      const result = await service.refreshToken('user-123', 0);
 
       expect(result).toHaveProperty('accessToken', 'new-jwt-token');
       expect(result).toHaveProperty('user');
+      expect(mockPrismaService.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-123' },
+        data: { tokenVersion: { increment: 1 } },
+      });
     });
 
     it('should throw UnauthorizedException when user not found', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
       await expect(service.refreshToken('invalid-user')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when token version mismatch', async () => {
+      const mockUser = {
+        id: 'user-123',
+        email: 'test@example.com',
+        tokenVersion: 2,
+        profile: { staffId: 1 },
+        roles: [{ role: 'user' }],
+      };
+
+      mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
+
+      await expect(service.refreshToken('user-123', 1)).rejects.toThrow('Token has been revoked');
     });
   });
 

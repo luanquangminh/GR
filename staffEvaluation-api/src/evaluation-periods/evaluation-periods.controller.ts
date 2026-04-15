@@ -6,15 +6,17 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
 import { EvaluationPeriodsService } from './evaluation-periods.service';
 import { CreateEvaluationPeriodDto, UpdateEvaluationPeriodDto } from './dto/evaluation-periods.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 
 @ApiTags('evaluation-periods')
 @ApiBearerAuth()
@@ -24,10 +26,12 @@ export class EvaluationPeriodsController {
   constructor(private evaluationPeriodsService: EvaluationPeriodsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all evaluation periods' })
+  @ApiOperation({ summary: 'Get all evaluation periods (supports optional pagination)' })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number (1-based). Omit for all results.' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page (max 100). Omit for all results.' })
   @ApiResponse({ status: 200, description: 'List of evaluation periods' })
-  findAll() {
-    return this.evaluationPeriodsService.findAll();
+  findAll(@Query() pagination: PaginationDto) {
+    return this.evaluationPeriodsService.findAll(pagination);
   }
 
   @Get('active')

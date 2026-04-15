@@ -45,7 +45,7 @@ describe('GroupsController', () => {
       ];
       mockGroupsService.findAll.mockResolvedValue(mockGroups);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll({});
 
       expect(result).toEqual(mockGroups);
       expect(mockGroupsService.findAll).toHaveBeenCalledTimes(1);
@@ -54,7 +54,7 @@ describe('GroupsController', () => {
     it('should return empty array when no groups exist', async () => {
       mockGroupsService.findAll.mockResolvedValue([]);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll({});
 
       expect(result).toEqual([]);
     });
@@ -117,7 +117,7 @@ describe('GroupsController', () => {
     });
 
     it('should create group without organization unit', async () => {
-      const createDto = { name: 'Standalone Group', organizationunitid: null };
+      const createDto = { name: 'Standalone Group', organizationunitid: undefined };
       const mockCreatedGroup = { id: 4, name: 'Standalone Group', organizationUnit: null };
       mockGroupsService.create.mockResolvedValue(mockCreatedGroup);
 

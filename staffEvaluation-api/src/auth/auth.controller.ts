@@ -75,9 +75,9 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   refresh(
     @Body() dto: RefreshTokenDto,
-    @CurrentUser() user: JwtPayload & { id: string },
+    @CurrentUser() user: JwtPayload & { id: string; tokenVersion?: number },
   ) {
-    return this.authService.refreshToken(user.id);
+    return this.authService.refreshToken(user.id, user.tokenVersion);
   }
 
   @Get('microsoft')
@@ -93,6 +93,7 @@ export class AuthController {
   @ApiResponse({ status: 302, description: 'Redirect to frontend with tokens' })
   async microsoftCallback(
     @Query('code') code: string,
+    @Query('state') state: string,
     @Query('error') error: string,
     @Query('error_description') errorDescription: string,
     @Res() res: express.Response,
@@ -102,6 +103,14 @@ export class AuthController {
       this.logger.warn(`Microsoft OAuth error: ${error} - ${errorDescription}`);
       return res.redirect(
         `${this.frontendUrl}/auth/callback?error=${encodeURIComponent(error)}`,
+      );
+    }
+
+    // Validate CSRF state parameter
+    if (!this.microsoftOAuthService.validateState(state)) {
+      this.logger.warn('Microsoft OAuth callback with invalid state parameter');
+      return res.redirect(
+        `${this.frontendUrl}/auth/callback?error=invalid_state`,
       );
     }
 

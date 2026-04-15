@@ -1,13 +1,38 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateEvaluationPeriodDto, UpdateEvaluationPeriodDto } from './dto/evaluation-periods.dto';
+import { PaginationDto, PaginatedResult } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class EvaluationPeriodsService {
+  private readonly logger = new Logger(EvaluationPeriodsService.name);
+
   constructor(private prisma: PrismaService) { }
 
-  async findAll() {
+  async findAll(pagination?: PaginationDto) {
+    if (pagination?.page && pagination?.limit) {
+      const { page, limit } = pagination;
+      const [data, total] = await Promise.all([
+        this.prisma.evaluationPeriod.findMany({
+          orderBy: { startDate: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        this.prisma.evaluationPeriod.count(),
+      ]);
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      } satisfies PaginatedResult<typeof data[number]>;
+    }
+
     return this.prisma.evaluationPeriod.findMany({
       orderBy: { startDate: 'desc' },
     });
@@ -57,19 +82,31 @@ export class EvaluationPeriodsService {
       throw new NotFoundException(`Evaluation period with ID ${id} not found`);
     }
 
+    // Validate date range: resolve final start/end from dto + existing record
+    const finalStartDate = dto.startDate ? new Date(dto.startDate) : period.startDate;
+    const finalEndDate = dto.endDate ? new Date(dto.endDate) : period.endDate;
+    if (finalEndDate <= finalStartDate) {
+      throw new BadRequestException('End date must be after start date');
+    }
+
     // If activating this period, deactivate all other active periods
     if (dto.status === 'active' && period.status !== 'active') {
-      await this.prisma.evaluationPeriod.updateMany({
+      const result = await this.prisma.evaluationPeriod.updateMany({
         where: { status: 'active', id: { not: id } },
         data: { status: 'closed' },
       });
+      if (result.count > 0) {
+        this.logger.warn(
+          `Activating period "${period.name}" (ID ${id}) — auto-closed ${result.count} other active period(s)`,
+        );
+      }
     }
 
     const data: Prisma.EvaluationPeriodUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.description !== undefined) data.description = dto.description;
-    if (dto.startDate !== undefined) data.startDate = new Date(dto.startDate);
-    if (dto.endDate !== undefined) data.endDate = new Date(dto.endDate);
+    if (dto.startDate !== undefined) data.startDate = finalStartDate;
+    if (dto.endDate !== undefined) data.endDate = finalEndDate;
     if (dto.status !== undefined) data.status = dto.status;
 
     return this.prisma.evaluationPeriod.update({
@@ -83,6 +120,14 @@ export class EvaluationPeriodsService {
 
     if (!period) {
       throw new NotFoundException(`Evaluation period with ID ${id} not found`);
+    }
+
+    const evalCount = await this.prisma.evaluation.count({ where: { periodid: id } });
+
+    if (evalCount > 0) {
+      this.logger.warn(
+        `Deleting period "${period.name}" (ID ${id}) — cascading ${evalCount} evaluation(s)`,
+      );
     }
 
     return this.prisma.evaluationPeriod.delete({ where: { id } });

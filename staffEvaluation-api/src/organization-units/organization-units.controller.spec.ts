@@ -47,7 +47,7 @@ describe('OrganizationUnitsController', () => {
       ];
       mockOrganizationUnitsService.findAll.mockResolvedValue(mockUnits);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll({});
 
       expect(result).toEqual(mockUnits);
       expect(mockOrganizationUnitsService.findAll).toHaveBeenCalled();

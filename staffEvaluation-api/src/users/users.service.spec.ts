@@ -17,6 +17,9 @@ describe('UsersService', () => {
       findMany: jest.fn(),
       findUnique: jest.fn(),
     },
+    staff: {
+      findUnique: jest.fn(),
+    },
     userRole: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -89,6 +92,7 @@ describe('UsersService', () => {
       mockPrismaService.profile.findUnique
         .mockResolvedValueOnce({ id: 'profile-1', userId: 'user-1' }) // Profile exists
         .mockResolvedValueOnce(null); // No existing link
+      mockPrismaService.staff.findUnique.mockResolvedValue({ id: 1, name: 'Staff' });
 
       const linkedProfile = { id: 'profile-1', staffId: 1, staff: { id: 1, name: 'Staff' } };
       mockPrismaService.profile.update.mockResolvedValue(linkedProfile);
@@ -109,10 +113,20 @@ describe('UsersService', () => {
       await expect(service.linkStaff(linkStaffDto)).rejects.toThrow(NotFoundException);
     });
 
+    it('should throw NotFoundException if staff not found', async () => {
+      // profile.findUnique is called twice: once for profile check, once for existing link check
+      // But staff check happens between them, so we need profile found, then staff not found
+      mockPrismaService.profile.findUnique.mockResolvedValue({ id: 'profile-1', userId: 'user-1' });
+      mockPrismaService.staff.findUnique.mockResolvedValue(null);
+
+      await expect(service.linkStaff(linkStaffDto)).rejects.toThrow(NotFoundException);
+    });
+
     it('should throw ConflictException if staff already linked to another profile', async () => {
       mockPrismaService.profile.findUnique
         .mockResolvedValueOnce({ id: 'profile-1', userId: 'user-1' })
         .mockResolvedValueOnce({ id: 'profile-2', userId: 'user-2' }); // Different profile has staff
+      mockPrismaService.staff.findUnique.mockResolvedValue({ id: 1, name: 'Staff' });
 
       await expect(service.linkStaff(linkStaffDto)).rejects.toThrow(ConflictException);
     });
@@ -121,6 +135,7 @@ describe('UsersService', () => {
       mockPrismaService.profile.findUnique
         .mockResolvedValueOnce({ id: 'profile-1', userId: 'user-1' })
         .mockResolvedValueOnce({ id: 'profile-1', staffId: 1 }); // Same profile
+      mockPrismaService.staff.findUnique.mockResolvedValue({ id: 1, name: 'Staff' });
 
       const linkedProfile = { id: 'profile-1', staffId: 1, staff: { id: 1 } };
       mockPrismaService.profile.update.mockResolvedValue(linkedProfile);
