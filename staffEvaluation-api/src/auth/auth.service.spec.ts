@@ -16,7 +16,14 @@ describe('AuthService', () => {
   const mockPrismaService = {
     user: {
       findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
+    },
+    staff: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    profile: {
       update: jest.fn(),
     },
   };
@@ -53,6 +60,7 @@ describe('AuthService', () => {
     jwtService = module.get<JwtService>(JwtService);
 
     jest.clearAllMocks();
+    mockPrismaService.staff.findMany.mockResolvedValue([]);
   });
 
   it('should be defined', () => {
@@ -108,6 +116,62 @@ describe('AuthService', () => {
       await expect(service.register(registerDto)).rejects.toThrow(
         'This email is registered via Microsoft',
       );
+    });
+
+    it('should auto-link staff on register when exactly one schoolEmail matches and staff has no profile', async () => {
+      const createdUser = {
+        id: 'user-123',
+        email: registerDto.email,
+        passwordHash: 'hashed-password',
+        profile: { staffId: null, userId: 'user-123' },
+        roles: [{ role: 'user' }],
+      };
+      const linkedUser = {
+        ...createdUser,
+        profile: { staffId: 42, userId: 'user-123' },
+      };
+
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
+      mockPrismaService.user.create.mockResolvedValue(createdUser);
+      mockPrismaService.staff.findMany.mockResolvedValue([
+        { id: 42, schoolEmail: registerDto.email, profile: null },
+      ]);
+      mockPrismaService.profile.update.mockResolvedValue({ staffId: 42 });
+      mockPrismaService.user.findUniqueOrThrow.mockResolvedValue(linkedUser);
+      mockJwtService.sign.mockReturnValue('jwt-token');
+
+      const result = await service.register(registerDto);
+
+      expect(mockPrismaService.profile.update).toHaveBeenCalledWith({
+        where: { userId: 'user-123' },
+        data: { staffId: 42 },
+      });
+      expect(result.user.staffId).toBe(42);
+    });
+
+    it('should NOT auto-link when multiple staff match the same schoolEmail', async () => {
+      const createdUser = {
+        id: 'user-123',
+        email: registerDto.email,
+        passwordHash: 'hashed-password',
+        profile: { staffId: null, userId: 'user-123' },
+        roles: [{ role: 'user' }],
+      };
+
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
+      mockPrismaService.user.create.mockResolvedValue(createdUser);
+      mockPrismaService.staff.findMany.mockResolvedValue([
+        { id: 42, schoolEmail: registerDto.email, profile: null },
+        { id: 43, schoolEmail: registerDto.email, profile: null },
+      ]);
+      mockJwtService.sign.mockReturnValue('jwt-token');
+
+      const result = await service.register(registerDto);
+
+      expect(mockPrismaService.profile.update).not.toHaveBeenCalled();
+      expect(result.user.staffId).toBeNull();
     });
   });
 

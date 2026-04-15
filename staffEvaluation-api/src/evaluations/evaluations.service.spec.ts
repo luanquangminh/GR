@@ -50,20 +50,38 @@ describe('EvaluationsService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all evaluations', async () => {
+    beforeEach(() => {
+      mockPrismaService.$transaction.mockImplementation((arr: unknown[]) => Promise.all(arr));
+      mockPrismaService.evaluation.findMany.mockResolvedValue([]);
+      mockPrismaService.evaluation.count.mockResolvedValue(0);
+    });
+
+    it('should return all evaluations with total and truncated flag', async () => {
       const mockEvaluations = [
         { id: 1, groupid: 1, reviewerid: 1, evaluateeid: 2, questionid: 1, periodid: 1, point: 4 },
         { id: 2, groupid: 1, reviewerid: 1, evaluateeid: 2, questionid: 2, periodid: 1, point: 5 },
       ];
       mockPrismaService.evaluation.findMany.mockResolvedValue(mockEvaluations);
+      mockPrismaService.evaluation.count.mockResolvedValue(2);
 
       const result = await service.findAll();
 
-      expect(result).toEqual(mockEvaluations);
+      expect(result).toEqual({ data: mockEvaluations, total: 2, truncated: false });
+    });
+
+    it('should mark truncated when total exceeds hard cap', async () => {
+      mockPrismaService.evaluation.findMany.mockResolvedValue([]);
+      mockPrismaService.evaluation.count.mockResolvedValue(60000);
+
+      const result = await service.findAll();
+
+      expect(result.truncated).toBe(true);
+      expect(result.total).toBe(60000);
     });
 
     it('should filter by groupId', async () => {
       mockPrismaService.evaluation.findMany.mockResolvedValue([]);
+      mockPrismaService.evaluation.count.mockResolvedValue(0);
 
       await service.findAll({ groupId: 1 });
 

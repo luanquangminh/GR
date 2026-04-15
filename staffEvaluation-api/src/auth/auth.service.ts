@@ -10,7 +10,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { User, Profile, UserRole } from '@prisma/client';
+import { Prisma, User, Profile, UserRole } from '@prisma/client';
 
 type UserWithRelations = User & {
   profile: Profile | null;
@@ -35,6 +35,46 @@ export class AuthService {
       Logger.warn('JWT_REFRESH_SECRET not set — deriving from JWT_SECRET. Set it explicitly in production.', 'AuthService');
     }
     this.refreshTokenSecret = refreshSecret || jwtSecret + '-refresh';
+  }
+
+  /**
+   * Link the user's profile to a Staff row when email matches exactly one
+   * Staff.schoolEmail and that staff is not already linked. Mirrors the
+   * OAuth auto-link path so both flows behave the same.
+   */
+  private async autoLinkStaff(user: UserWithRelations): Promise<UserWithRelations> {
+    if (user.profile?.staffId) return user;
+
+    const matches = await this.prisma.staff.findMany({
+      where: { schoolEmail: user.email },
+      include: { profile: true },
+      take: 2,
+    });
+    const staff = matches.length === 1 ? matches[0] : null;
+    if (!staff || staff.profile) return user;
+
+    try {
+      await this.prisma.profile.update({
+        where: { userId: user.id },
+        data: { staffId: staff.id },
+      });
+    } catch (error) {
+      // Another concurrent login may have claimed the staff link first.
+      // Unique violation on profile.staffId → just return the user; they'll
+      // fetch the current state on next request.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        return user;
+      }
+      throw error;
+    }
+
+    return this.prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
+      include: { profile: true, roles: true },
+    });
   }
 
   async register(dto: RegisterDto) {
@@ -70,7 +110,8 @@ export class AuthService {
       },
     });
 
-    return this.generateTokenResponse(user);
+    const linked = await this.autoLinkStaff(user);
+    return this.generateTokenResponse(linked);
   }
 
   async login(dto: LoginDto) {
@@ -97,7 +138,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.generateTokenResponse(user);
+    const linked = await this.autoLinkStaff(user);
+    return this.generateTokenResponse(linked);
   }
 
   async refreshToken(userId: string, tokenVersion?: number) {

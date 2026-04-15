@@ -39,26 +39,30 @@ export class EvaluationsService {
       take = FIND_ALL_HARD_CAP;
     }
 
-    const results = await this.prisma.evaluation.findMany({
-      where,
-      take,
-      skip,
-      include: {
-        reviewer: true,
-        evaluatee: true,
-        group: true,
-        question: true,
-        period: true,
-      },
-    });
+    const [results, total] = await this.prisma.$transaction([
+      this.prisma.evaluation.findMany({
+        where,
+        take,
+        skip,
+        include: {
+          reviewer: true,
+          evaluatee: true,
+          group: true,
+          question: true,
+          period: true,
+        },
+      }),
+      this.prisma.evaluation.count({ where }),
+    ]);
 
-    if (!paginated && results.length >= FIND_ALL_HARD_CAP) {
+    const truncated = !paginated && total > FIND_ALL_HARD_CAP;
+    if (truncated) {
       this.logger.warn(
-        `findAll hit hard cap (${FIND_ALL_HARD_CAP}); results may be truncated. Filters: ${JSON.stringify(query)}`,
+        `findAll truncated at ${FIND_ALL_HARD_CAP} of ${total} rows. Filters: ${JSON.stringify(query)}`,
       );
     }
 
-    return results;
+    return { data: results, total, truncated };
   }
 
   async findByReviewer(staffId: number, groupId?: number, periodId?: number) {
